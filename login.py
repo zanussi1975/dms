@@ -22,15 +22,6 @@ USER_TOKEN = os.getenv("KSEF_USER_TOKEN")
 # Klucz publiczny dla API 2.0 (pobierany z GET /v2/security/public-key-certificates)
 PUBLIC_KEY_PEM = os.getenv("KSEF_PUBLIC_KEY").encode("ascii")
 
-# b"""-----BEGIN PUBLIC KEY-----
-# MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxsyeiYiWB2+KFxEpQGoN
-# Qa6W8Pc4kWGl8V+sBMdW3Fqh0lhKiqKfpH5RWLDmZ30EzkKJ5+IdaWYFoijhYxDB
-# IBhINVQKlBZvEVd6CfPJUJypa94eRO5cc6IPNI35aMhfKP/Kc4A/OiT2J4nyCz6B
-# V98xOXCAlyDPD73XM6O2ormL6gUb673zvjOIakf39tAPPVgWIDuX7GDZYGebN7LX
-# oGvjPo5YDqC2KN51ofLbO+n74iei5OaGN94Ap52vI7uzK2g/hQslOd0Avl2U1kwR
-# nnF0yzwbDzRrHqPCHUYxVp5nHdo+jHe1CNoa6gt0m6pn1StYcitSXKg2hTNjnes6
-# TQIDAQAB
-# -----END PUBLIC KEY-----"""
 
 def login_to_ksef_v2(nip: str, user_token: str, pem_key: bytes) -> str:
     headers = {"Content-Type": "application/json", "Accept": "application/json"}
