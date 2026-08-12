@@ -1,0 +1,405 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="row">
+    <!-- LEWA STRONA: PRZEGLĄDARKA PDF -->
+    <div class="col-md-8">
+        <div class="card shadow-sm border-0 mb-3" style="height: calc(100vh - 120px);">
+            <div class="card-header custom-card-header d-flex justify-content-between align-items-center flex-shrink-0">
+                <h5 class="mb-0" id="tytul-podgladu">Podgląd: Dokument główny</h5>
+                <button id="btn-powrot" class="btn btn-sm btn-outline-secondary d-none" onclick="zmienPodglad('{{ faktura.pdf_file.url }}', 'Faktura główna', false)">
+                    <i class="bi bi-arrow-left me-1"></i> Powrót
+                </button>
+            </div>
+            <div class="card-body custom-card-body p-0 rounded-bottom d-flex flex-column flex-grow-1">
+                <!-- Dynamiczna wysokość zamiast sztywnego min-height: 800px -->
+                <iframe id="pdf-viewer" src="{{ faktura.pdf_file.url }}" style="border: none; width: 100%; height: 100%;"></iframe>
+            </div>
+        </div>
+    </div>
+
+    <!-- PRAWA STRONA: AKCJE, ZAŁĄCZNIKI, HISTORIA -->
+    <div class="col-md-4" style="height: calc(100vh - 120px); overflow-y: auto; padding-right: 12px;">
+        
+        <!-- PRZYCISK POWROTU -->
+        <div class="mb-3">
+            <a href="{% url 'moje_biurko' %}" class="btn btn-outline-secondary w-100 shadow-sm">
+                <i class="bi bi-arrow-left me-1"></i> Wróć do Wirtualnego Biurka
+            </a>
+        </div>
+        
+        <!-- SEKCJA 1: AKCJE -->
+        {% if faktura.status == 'ARCHIVED' %}
+        <div class="alert alert-secondary shadow-sm mb-3 text-center border-0">
+            <h6 class="mb-1"><i class="bi bi-archive-fill text-secondary me-2"></i> Dokument zarchiwizowany</h6>
+            <small class="custom-text-muted">Edycja i zmiana statusu są zablokowane.</small>
+        </div>
+
+        <!-- STAN: DOKUMENT ZABLOKOWANY -->
+        {% elif faktura.status == 'BLOCKED' %}
+        <div class="alert alert-danger shadow-sm mb-3 text-center border-0">
+            <h6 class="mb-1"><i class="bi bi-slash-circle-fill text-danger me-2"></i> Dokument zablokowany</h6>
+            <small class="custom-text-muted">Zablokował(a): {{ faktura.blocked_by.first_name }} {{ faktura.blocked_by.last_name }}</small>
+        </div>
+        
+        <div class="card shadow-sm mb-3 border-0">
+            <div class="card-header custom-card-header">
+                <h5 class="mb-0">Zarządzanie blokadą</h5>
+            </div>
+            <div class="card-body custom-card-body rounded-bottom">
+                <form method="POST">
+                    {% csrf_token %}
+                    <div class="mb-3 position-relative">
+                        <label class="form-label">Komentarz:</label>
+                        <!-- Zmieniono na nowe poleKomentarza -->
+                        <textarea class="form-control" name="komentarz" id="poleKomentarza" rows="2" placeholder="Podaj powód odblokowania lub dodaj notatkę..."></textarea>
+                        
+                        <!-- NOWOŚĆ: Dyskretny przycisk komentarza -->
+                        <div class="text-end mt-2">
+                            <button type="submit" name="akcja" value="tylko_komentarz" id="przyciskTylkoKomentarz" class="btn btn-sm btn-outline-secondary d-none shadow-sm transition">
+                                <i class="bi bi-chat-left-text me-1"></i> Dodaj tylko komentarz do historii
+                            </button>
+                        </div>
+                    </div>
+                    <button type="submit" name="akcja" value="odblokuj" class="btn btn-success shadow-sm w-100">
+                        <i class="bi bi-unlock-fill me-1"></i> Odblokuj i przywróć do obiegu
+                    </button>
+                </form>
+            </div>
+        </div>
+        
+        <!-- NOWOŚĆ: Stan zamrożenia przed Archiwum (Gotowe do księgowania) -->
+        {% elif faktura.status == 'READY_FOR_ACCOUNTING' or faktura.status == 'ORDER_ACCEPTED' %}
+        <div class="alert alert-info shadow-sm mb-3 text-center border-0">
+            <h6 class="mb-1"><i class="bi bi-lock-fill text-info me-2"></i> Oczekuje na zaksięgowanie</h6>
+            <small class="custom-text-muted">Delegowanie i edycja załączników są zablokowane.</small>
+        </div>
+        
+        <div class="card shadow-sm mb-3 border-0">
+            <div class="card-header custom-card-header">
+                <h5 class="mb-0">Akcja końcowa</h5>
+            </div>
+            <div class="card-body custom-card-body rounded-bottom">
+                <form method="POST">
+                    {% csrf_token %}
+                    <div class="mb-3 position-relative">
+                        <label class="form-label">Komentarz (opcjonalny):</label>
+                        <!-- Zmieniono na nowe poleKomentarza -->
+                        <textarea class="form-control" name="komentarz" id="poleKomentarza" rows="2" placeholder="np. Zaksięgowano w systemie X, lub dodaj notatkę..."></textarea>
+                        
+                        <!-- NOWOŚĆ: Dyskretny przycisk komentarza -->
+                        <div class="text-end mt-2">
+                            <button type="submit" name="akcja" value="tylko_komentarz" id="przyciskTylkoKomentarz" class="btn btn-sm btn-outline-secondary d-none shadow-sm transition">
+                                <i class="bi bi-chat-left-text me-1"></i> Dodaj tylko komentarz do historii
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 mb-2">
+                        <!-- Przycisk wykonuje teraz podwójną robotę: archiwizuje i automatycznie generuje PDF -->
+                        <button type="submit" name="akcja" value="archiwizuj" class="btn btn-primary shadow-sm">
+                            <i class="bi bi-archive me-1"></i> Zaksięgowano - Przenieś do Archiwum
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Stan standardowy (Akceptacje, Delegowanie, Dodawanie Załączników) -->
+        {% else %}
+        <div class="card shadow-sm mb-3 border-0">
+            <div class="card-header custom-card-header">
+                <h5 class="mb-0">Akcje</h5>
+            </div>
+            <div class="card-body custom-card-body rounded-bottom">
+                <form method="POST" enctype="multipart/form-data">
+                    {% csrf_token %}
+
+                    <div class="mb-3">
+                        <label class="form-label">Twój komentarz:</label>
+                        <textarea class="form-control" name="komentarz" id="poleKomentarza" rows="2" placeholder="Opcjonalny komentarz..."></textarea>
+                        <div class="text-end mt-2">
+                            <button type="submit" name="akcja" value="tylko_komentarz" id="przyciskTylkoKomentarz" class="btn btn-sm btn-outline-secondary d-none shadow-sm transition">
+                                <i class="bi bi-chat-left-text me-1"></i> Dodaj tylko komentarz do historii
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- SEKCJA PRZYCISKÓW AKCEPTACJI -->
+                    <div class="d-grid gap-2 mb-4">
+                        {% if faktura.is_fully_compliant %}
+                            <button type="submit" name="akcja" value="auto_approve_compliant" class="btn btn-warning shadow-sm fw-bold border-0" style="color: #4A3525;">
+                                <i class="bi bi-lightning-charge-fill me-1"></i> Automatyczna akceptacja (Zgodne w 100%)
+                            </button>
+                            <hr class="custom-border my-2">
+                        {% endif %}
+
+                        {% if request.user.profile.can_approve_accountant and not faktura.is_accountant_approved %}
+                            <button type="submit" name="akcja" value="approve_accountant" class="btn btn-success shadow-sm">
+                                <i class="bi bi-check-circle me-1"></i> Udziel akceptacji Księgowego
+                            </button>
+                        {% endif %}
+
+                        {% if request.user.profile.can_approve_director and not faktura.is_director_approved %}
+                            <button type="submit" name="akcja" value="approve_director" class="btn btn-success shadow-sm">
+                                <i class="bi bi-check-circle me-1"></i> Udziel akceptacji Dyrektora
+                            </button>
+                        {% endif %}
+                        
+                        {% if faktura.is_accountant_approved %}
+                            <div class="alert alert-success py-1 px-2 m-0 text-center border-0"><small><i class="bi bi-check2-all me-1"></i> Zaakceptowano: Księgowość</small></div>
+                        {% endif %}
+                        {% if faktura.is_director_approved %}
+                            <div class="alert alert-success py-1 px-2 m-0 text-center border-0"><small><i class="bi bi-check2-all me-1"></i> Zaakceptowano: Dyrektor</small></div>
+                        {% endif %}
+                    </div>
+                    
+                    <hr class="custom-border">
+                    
+                    <!-- SEKCJA DELEGOWANIA -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Przekaż dokument (Deleguj):</label>
+                        <div class="input-group input-group-sm">
+                            <select class="form-select" name="reczny_adresat">
+                                <option value="">--- Wybierz pracownika ---</option>
+                                {% for uzytkownik in wszyscy_uzytkownicy %}
+                                    <option value="{{ uzytkownik.id }}">
+                                        {{ uzytkownik.first_name }} {{ uzytkownik.last_name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                            <button type="submit" name="akcja" value="deleguj" class="btn custom-btn-main shadow-sm">
+                                <i class="bi bi-send me-1"></i> Wyślij na biurko
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <hr class="custom-border">
+                    
+                    <!-- DODAWANIE ZAŁĄCZNIKÓW -->
+                    <label class="form-label custom-text-muted"><small>Dodaj załącznik (tylko PDF):</small></label>
+                    <div class="input-group input-group-sm">
+                        <input type="file" class="form-control" name="nowy_plik" accept=".pdf">
+                        <button type="submit" name="akcja" value="dodaj_zalacznik" class="btn btn-secondary">Dodaj</button>
+                    </div>
+
+                    <hr class="custom-border">
+                    <!-- PRZYCISK BLOKOWANIA -->
+                    <div class="mb-2">
+                        <button type="submit" name="akcja" value="zablokuj" class="btn btn-outline-danger btn-sm w-100 shadow-sm" onclick="return confirm('Czy na pewno chcesz wstrzymać procedowanie tego dokumentu? Zniknie on z Twojego biurka głównego.');">
+                            <i class="bi bi-slash-circle me-1"></i> Zablokuj dokument (Wymaga komentarza wyżej)
+                        </button>
+                    </div>
+
+                </form>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- NOWA SEKCJA: POWIĄZANE DOKUMENTY (Zawsze widoczna) -->
+        <div class="card shadow-sm mb-3 border-0">
+            <div class="card-header custom-card-header">
+                <h5 class="mb-0"><i class="bi bi-link-45deg text-primary me-1"></i> Powiązane dokumenty</h5>
+            </div>
+            <div class="card-body custom-card-body rounded-bottom">
+                
+                {% if faktura.typ_dokumentu == 'FAKTURA' %}
+                    
+                    <!-- Formularz parowania wyświetlamy TYLKO, gdy dokument nie jest w archiwum -->
+                    {% if faktura.status != 'ARCHIVED' and faktura.status != 'READY_FOR_ACCOUNTING' and faktura.status != 'ORDER_ACCEPTED' %}
+                        <form method="POST">
+                            {% csrf_token %}
+                            <label class="form-label custom-text-muted"><small>Powiąż z zamówieniem (zgodny NIP):</small></label>
+                            <div class="input-group input-group-sm mb-1">
+                                <select class="form-select" name="id_zamowienia" {% if faktura.related_order and faktura.paired_by != request.user %}disabled{% endif %}>
+                                    <option value="">--- Brak powiązania ---</option>
+                                    {% for zamowienie in dostepne_zamowienia %}
+                                        <option value="{{ zamowienie.id }}" {% if faktura.related_order and faktura.related_order.id == zamowienie.id %}selected{% endif %}>
+                                            {{ zamowienie.document_number }} (Netto: {{ zamowienie.net_amount }} {{ zamowienie.currency }})
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                                <button type="submit" name="akcja" value="paruj" class="btn btn-secondary" {% if faktura.related_order and faktura.paired_by != request.user %}disabled{% endif %}><i class="bi bi-floppy me-1"></i> Zapisz</button>
+                            </div>
+                            {% if faktura.related_order and faktura.paired_by and faktura.paired_by != request.user %}
+                            <div class="form-text text-danger mb-3" style="font-size: 0.75rem;">
+                                <small>Dokument sparował(a): {{ faktura.paired_by.first_name }} {{ faktura.paired_by.last_name }}. Tylko ta osoba może odłączyć zamówienie.</small>
+                            </div>
+                            {% else %}
+                            <div class="mb-3"></div>
+                            {% endif %}
+                        </form>
+                    {% endif %}
+
+                    <!-- Zawsze widoczny status powiązania i przycisk podglądu -->
+                    {% if faktura.related_order %}
+                        <div class="alert {% if faktura.is_fully_compliant %}alert-success{% else %}alert-warning{% endif %} py-2 px-3 d-flex align-items-center mb-2" style="font-size: 0.85rem;">
+                            <span class="me-2 fs-5">
+                                {% if faktura.is_fully_compliant %}
+                                    <i class="bi bi-check-circle-fill text-success"></i>
+                                {% else %}
+                                    <i class="bi bi-exclamation-triangle-fill text-warning"></i>
+                                {% endif %}
+                            </span>
+                            <div>
+                                <strong>Sparowano:</strong> {{ faktura.related_order.document_number }}<br>
+                                Kwoty Netto: 
+                                {% if faktura.is_fully_compliant %}
+                                    <strong>W 100% zgodne!</strong> ({{ faktura.net_amount }} {{ faktura.currency }}).
+                                {% else %}
+                                    <strong>Niezgodne!</strong><br>
+                                    Faktura: {{ faktura.net_amount }} {{ faktura.currency }} <br>
+                                    Zamówienie: {{ faktura.related_order.net_amount }} {{ faktura.currency }}
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        {% if faktura.related_order.pdf_file %}
+                        <div>
+                            <button type="button" class="btn btn-sm btn-outline-info w-100 shadow-sm" onclick="zmienPodglad('{{ faktura.related_order.pdf_file.url }}', 'Zamówienie: {{ faktura.related_order.document_number }}', true)">
+                                <i class="bi bi-file-earmark-pdf text-danger me-2"></i> Podgląd PDF zamówienia
+                            </button>
+                        </div>
+                        {% endif %}
+                    {% else %}
+                        {% if faktura.status == 'ARCHIVED' %}
+                        <div class="text-center custom-text-muted"><small>Brak powiązanego zamówienia.</small></div>
+                        {% endif %}
+                    {% endif %}
+
+                {% elif faktura.typ_dokumentu == 'ZAMOWIENIE' %}
+                    
+                    <!-- Podgląd faktur dla zamówienia (zawsze widoczny) -->
+                    {% if faktura.linked_invoices.exists %}
+                        <ul class="list-group list-group-flush border rounded shadow-sm">
+                            {% for powiazana_faktura in faktura.linked_invoices.all %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center p-2" style="font-size: 0.85rem;">
+                                    <div>
+                                        <strong>{{ powiazana_faktura.document_number }}</strong><br>
+                                        <span class="text-muted">{{ powiazana_faktura.net_amount }} {{ faktura.currency }}</span>
+                                    </div>
+                                    
+                                    {% if powiazana_faktura.pdf_file %}
+                                    <button type="button" class="btn btn-sm btn-outline-info" onclick="zmienPodglad('{{ powiazana_faktura.pdf_file.url }}', 'Faktura: {{ powiazana_faktura.document_number }}', true)">
+                                        <i class="bi bi-file-earmark-pdf text-danger me-2"></i> Podgląd
+                                    </button>
+                                    {% endif %}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <div class="text-center custom-text-muted"><small>Brak podpiętych faktur.</small></div>
+                    {% endif %}
+
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- SEKCJA 2: ZAŁĄCZNIKI -->
+        <div class="card shadow-sm mb-3 border-0">
+            <div class="card-header custom-card-header">
+                <h5 class="mb-0">Załączniki ({{ zalaczniki.count }})</h5>
+            </div>
+            <ul class="list-group list-group-flush custom-card-body rounded-bottom" style="max-height: 200px; overflow-y: auto;">
+                {% for zalacznik in zalaczniki %}
+                <li class="list-group-item custom-list-item">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="text-truncate" style="max-width: 180px;" title="{{ zalacznik.filename }}">
+                            <small><i class="bi bi-file-earmark-text text-secondary me-1"></i> {{ zalacznik.filename }}</small>
+                        </span>
+                        
+                        <div class="btn-group">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="zmienPodglad('{{ zalacznik.file.url }}', '{{ zalacznik.filename }}', true)">
+                                <i class="bi bi-file-earmark-pdf text-danger me-2"></i> Podgląd
+                            </button>
+                            
+                            {% if faktura.status != 'ARCHIVED' and faktura.status != 'READY_FOR_ACCOUNTING' and faktura.status != 'ORDER_ACCEPTED' %}
+                            <form method="POST" style="display:inline;">
+                                {% csrf_token %}
+                                <input type="hidden" name="zalacznik_id" value="{{ zalacznik.id }}">
+                                <button type="submit" name="akcja" value="usun_zalacznik" class="btn btn-sm btn-outline-danger" onclick="return confirm('Na pewno usunąć ten załącznik?');">
+                                    <i class="bi bi-trash3 me-1"></i>
+                                </button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="custom-text-muted" style="font-size: 0.75rem;">
+                        Dodano: {{ zalacznik.uploaded_at|date:"d.m.Y H:i" }} przez {{ zalacznik.uploaded_by.username }}
+                    </div>
+                </li>
+                {% empty %}
+                <li class="list-group-item custom-list-item text-center custom-text-muted"><small>Brak załączników.</small></li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <!-- SEKCJA 3: HISTORIA OBIEGU -->
+        <div class="card shadow-sm mb-3 border-0">
+            <div class="card-header custom-card-header">
+                <h5 class="mb-0"><i class="bi bi-clock-history text-muted me-2"></i> Historia obiegu</h5>
+            </div>
+            <ul class="list-group list-group-flush custom-card-body rounded-bottom" style="max-height: 350px; overflow-y: auto;">
+                {% for wpis in historia %}
+                <li class="list-group-item custom-list-item">
+                    <div class="d-flex justify-content-between">
+                        <strong>
+                            {% if wpis.user %}
+                                {{ wpis.user.first_name }} {{ wpis.user.last_name }}
+                            {% else %}
+                                <i class="bi bi-robot text-secondary me-1"></i> System DMS
+                            {% endif %}
+                        </strong>
+                        <small class="custom-text-muted">{{ wpis.created_at|date:"d.m.Y H:i" }}</small>
+                    </div>
+                    <div class="mt-1">
+                        <span class="badge bg-secondary">{{ wpis.get_new_status_display }}</span>
+                    </div>
+                    {% if wpis.comment %}
+                    <div class="mt-2" style="font-size: 0.85rem; border-left: 3px solid var(--border-color); padding-left: 10px;">
+                        <span>{{ wpis.comment|safe }}</span>
+                    </div>
+                    {% endif %}
+                </li>
+                {% empty %}
+                <li class="list-group-item text-center custom-text-muted custom-list-item">
+                    <small>Brak wpisów w historii.</small>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    function zmienPodglad(url_pliku, nazwa, to_zalacznik) {
+        document.getElementById('pdf-viewer').src = url_pliku;
+        document.getElementById('tytul-podgladu').innerText = 'Podgląd: ' + nazwa;
+        
+        var btnPowrot = document.getElementById('btn-powrot');
+        if (to_zalacznik) {
+            btnPowrot.classList.remove('d-none');
+        } else {
+            btnPowrot.classList.add('d-none');
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const poleKomentarza = document.getElementById('poleKomentarza');
+        const przyciskTylkoKomentarz = document.getElementById('przyciskTylkoKomentarz');
+        
+        if (poleKomentarza && przyciskTylkoKomentarz) {
+            poleKomentarza.addEventListener('input', function() {
+                // Sprawdzamy czy pole zawiera jakikolwiek tekst (ignorując same spacje)
+                if (this.value.trim().length > 0) {
+                    przyciskTylkoKomentarz.classList.remove('d-none');
+                } else {
+                    przyciskTylkoKomentarz.classList.add('d-none');
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid px-4 py-3 full-height-wrapper">
+    <div class="row mb-3 flex-shrink-0">
+        <div class="col-12">
+            <h2 class="fw-bold mb-1">📂 {{ tytul }}</h2>
+            <p class="custom-text-muted text-muted mb-0">{{ opis }}</p>
+        </div>
+    </div>
+
+    <div class="row full-height-row">
+        <!-- MENU BOCZNE -->
+        <div class="col-md-3 sidebar-col mb-3 mb-md-0">
+            <div class="card shadow-sm border-0 sidebar-card p-3 rounded-3 h-100">
+                <h6 class="text-uppercase custom-text-muted fs-7 fw-bold px-3 mb-3 text-muted">Nawigacja</h6>
+                <div class="list-group list-group-flush gap-1">
+                    <a href="{% url 'moje_biurko' %}" class="sidebar-item"><i class="bi bi-inbox me-2"></i> Biurko</a>
+                    <a href="{% url 'zamowienia_corim' %}" class="sidebar-item"><i class="bi bi-hdd-network me-2"></i> Moje Zamówienia CORIM</a>
+                    <a href="{% url 'archiwum_firmowe' %}" class="sidebar-item"><i class="bi bi-folder2-open me-2"></i> Archiwum firmowe</a>
+                    <a href="{% url 'archiwum_osobiste' %}" class="sidebar-item"><i class="bi bi-person-workspace me-2"></i> Archiwum osobiste</a>
+                    <a href="{% url 'dokumenty_zablokowane' %}" class="sidebar-item"><i class="bi bi-slash-circle me-2"></i> Dokumenty zablokowane</a>
+                    <a href="{% url 'wyszukiwarka_ksef' %}" class="sidebar-item"><i class="bi bi-search me-2"></i> Wyszukiwarka KSeF</a>
+                    <a href="{% url 'ustawienia_profilu' %}" class="sidebar-item"><i class="bi bi-gear me-2"></i> Ustawienia konta</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- TABELA Z DOKUMENTAMI -->
+        <div class="col-md-9 content-col">
+            <div class="card shadow-sm border-0 h-100 d-flex flex-column">
+                <div class="card-header custom-card-header d-flex justify-content-between align-items-center py-2 flex-shrink-0">
+                    <h5 class="mb-0">Zarchiwizowane pozycje</h5>
+                    
+                    <!-- NOWOŚĆ: Wyszukiwarka -->
+                    <form method="GET" class="d-flex mx-3" style="max-width: 400px; width: 100%;">
+                        <div class="input-group input-group-sm shadow-sm">
+                            <input type="text" name="q" class="form-control border-secondary" placeholder="Szukaj po numerze, nazwie lub NIP..." value="{{ query }}">
+                            <button class="btn btn-secondary" type="submit"><i class="bi bi-search"></i></button>
+                            {% if query %}
+                                <!-- Przycisk czyszczenia (resetu) wyszukiwania -->
+                                <a href="?" class="btn btn-outline-secondary" title="Wyczyść wyszukiwanie">✖</a>
+                            {% endif %}
+                        </div>
+                    </form>
+                    
+                    <span class="badge bg-secondary rounded shadow-sm px-3 py-2">{{ dokumenty.count }} poz.</span>
+                </div>
+                
+                <div class="card-body custom-card-body p-0 table-responsive table-container-scrollable flex-grow-1">
+                    <table class="table custom-table mb-0 align-middle">
+                        <thead>
+                            <tr>
+                                <th class="ps-3">Typ</th>
+                                <th>Nr dokumentu</th>
+                                <th>Kontrahent</th>
+                                <th>Kwota Brutto</th>
+                                <th>Zarchiwizowano (ostatnia zmiana)</th>
+                                <th class="text-end pe-3">Akcja</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for dokument in dokumenty %}
+                            <tr>
+                                <td class="ps-3">
+                                    {% if dokument.typ_dokumentu == 'FAKTURA' %}
+                                        <span class="badge bg-primary shadow-sm" title="Faktura"><i class="bi bi-file-earmark-text text-secondary me-1"></i> Faktura</span>
+                                    {% else %}
+                                        <span class="badge bg-success shadow-sm" title="Zamówienie"><i class="bi bi-box-seam me-1"></i> Zamówienie</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <strong>{{ dokument.document_number }}</strong>
+                                    {% if dokument.typ_dokumentu == 'FAKTURA' and dokument.related_order %}
+                                        <br><span class="badge bg-light text-dark shadow-sm mt-1" style="font-size: 0.65rem;"><i class="bi bi-link-45deg text-primary me-1"></i> Powiązane zam.</span>
+                                    {% elif dokument.typ_dokumentu == 'ZAMOWIENIE' and dokument.linked_invoices.exists %}
+                                        <br><span class="badge bg-light text-dark shadow-sm mt-1" style="font-size: 0.65rem;"><i class="bi bi-link-45deg text-primary me-1"></i> Zrealizowano (Faktura)</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ dokument.contractor_name }} <br><small class="custom-text-muted">NIP: {{ dokument.contractor_nip }}</small></td>
+                                <td><strong>{{ dokument.net_amount }} {{ dokument.currency }}</strong></td>
+                                <td><small class="custom-text-muted">{{ dokument.updated_at|date:"d.m.Y H:i" }}</small></td>
+                                
+                                <td class="text-end pe-3">
+                                    <a href="{% url 'szczegoly_faktury' dokument.id %}" class="btn btn-sm btn-outline-info px-3">
+                                        <i class="bi bi-eye me-1"></i> Podgląd
+                                    </a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center py-5 custom-text-muted">
+                                    <i class="bi bi-link-45deg text-primary me-1"></i>
+                                    <em>Pusto! W tym archiwum nie ma jeszcze żadnych dokumentów.</em>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

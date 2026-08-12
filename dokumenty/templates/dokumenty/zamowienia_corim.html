@@ -1,0 +1,174 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container-fluid px-4 py-3 full-height-wrapper">
+    <div class="row mb-3 flex-shrink-0">
+        <div class="col-12">
+            <h2 class="fw-bold mb-1">🔌 Integracja CORIM</h2>
+            <p class="custom-text-muted text-muted mb-0">Twoje zamówienia pobrane z systemu zewnętrznego.</p>
+        </div>
+    </div>
+
+    <div class="row full-height-row">
+        
+        <!-- LEWA STRONA: Pionowe Menu Nawigacyjne -->
+        <div class="col-md-3 sidebar-col mb-3 mb-md-0">
+            <div class="card shadow-sm border-0 sidebar-card p-3 rounded-3 h-100">
+                <h6 class="text-uppercase custom-text-muted fs-7 fw-bold px-3 mb-3 text-muted">Nawigacja</h6>
+                <div class="list-group list-group-flush gap-1">
+                    <a href="{% url 'moje_biurko' %}" class="sidebar-item"><i class="bi bi-inbox me-2"></i> Biurko</a>
+                    <a href="{% url 'zamowienia_corim' %}" class="sidebar-item active"><i class="bi bi-hdd-network me-2"></i> Moje Zamówienia CORIM</a>
+                    <a href="{% url 'archiwum_firmowe' %}" class="sidebar-item"><i class="bi bi-folder2-open me-2"></i> Archiwum firmowe</a>
+                    <a href="{% url 'archiwum_osobiste' %}" class="sidebar-item"><i class="bi bi-person-workspace me-2"></i> Archiwum osobiste</a>
+                    <a href="{% url 'dokumenty_zablokowane' %}" class="sidebar-item"><i class="bi bi-slash-circle me-2"></i> Dokumenty zablokowane</a>
+                    <a href="{% url 'wyszukiwarka_ksef' %}" class="sidebar-item"><i class="bi bi-search me-2"></i> Wyszukiwarka KSeF</a>
+                    <a href="{% url 'ustawienia_profilu' %}" class="sidebar-item"><i class="bi bi-gear me-2"></i> Ustawienia konta</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- PRAWA STRONA: Tabela -->
+        <div class="col-md-9 content-col">
+            <div class="card shadow-sm border-0 h-100 d-flex flex-column">
+                <div class="card-header custom-card-header py-3 flex-shrink-0">
+                    <h5 class="mb-0">Lista 20 ostatnich zamówień z CORIM</h5>
+                </div>
+                
+                <div class="card-body custom-card-body p-0 table-responsive table-container-scrollable flex-grow-1">
+                    {% if not corim_user %}
+                    <div class="p-5 text-center">
+                        <h4>Brak skonfigurowanego użytkownika</h4>
+                        <p class="text-muted">Przejdź do Ustawień Konta i przypisz swój identyfikator z CORIM.</p>
+                        <a href="{% url 'ustawienia_profilu' %}" class="btn custom-btn-main">Przejdź do ustawień</a>
+                    </div>
+                    {% else %}
+                    <table class="table custom-table mb-0 align-middle">
+                        <thead>
+                            <tr>
+                                <th class="ps-3">Data</th>
+                                <th>Numer zamówienia</th>
+                                <th>Dostawca (Kod)</th>
+                                <th>Kwota Netto</th>
+                                <th>Opis</th>
+                                <th class="text-end pe-3">Akcja</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for zam in zamowienia %}
+                            <tr>
+                                <td class="ps-3">{{ zam.data_utworzenia }}</td>
+                                
+                                <!-- NOWOŚĆ: Oznaczenie statusu pod numerem zamówienia -->
+                                <td>
+                                    <strong>{{ zam.numer }}</strong>
+                                    {% if zam.numer in zaimportowane_numery %}
+                                        <br><span class="badge bg-success shadow-sm mt-1" style="font-size: 0.65rem;"><i class="bi bi-check-circle-fill me-1"></i> W systemie</span>
+                                    {% endif %}
+                                </td>
+                                
+                                <td>{{ zam.nazwa_dostawcy }} <br><small class="text-muted">Kod: {{ zam.kod_dostawcy }}</small></td>
+                                <td><strong>{{ zam.kwota }} {{ zam.waluta }}</strong></td>
+                                <td><small class="text-muted">{{ zam.opis }}</small></td>
+                                
+                                <!-- NOWOŚĆ: Blokada przycisku, jeśli zamówienie jest już na liście zaimportowanych -->
+                                <td class="text-end pe-3">
+                                    {% if zam.numer in zaimportowane_numery %}
+                                        <button class="btn btn-sm btn-outline-secondary shadow-sm" disabled>
+                                            <i class="bi bi-check2-all me-1"></i> Skopiowane
+                                        </button>
+                                    {% else %}
+                                        <button class="btn btn-sm custom-btn-main shadow-sm" data-bs-toggle="modal" data-bs-target="#importModal" 
+                                                onclick="wypelnijDane('{{ zam.numer }}', '{{ zam.data_utworzenia }}', '{{ zam.kod_dostawcy }}', '{{ zam.nazwa_dostawcy|escapejs }}', '{{ zam.kwota }}', '{{ zam.waluta }}')">
+                                            <i class="bi bi-box-arrow-in-down me-1"></i> Importuj
+                                        </button>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="6" class="text-center py-5 text-muted">Nie znaleziono żadnych zamówień w CORIM dla użytkownika {{ corim_user }}.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Kopiowania -->
+<div class="modal fade" id="importModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content custom-card-body">
+            <div class="modal-header custom-card-header">
+                <h5 class="modal-title">Import zamówienia do DMS</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{% url 'importuj_corim' %}" method="POST" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <!-- Ukryte wartości odczytywane przez model DMS -->
+                    <input type="hidden" name="numer" id="modal_numer">
+                    <input type="hidden" name="data" id="modal_data">
+                    <input type="hidden" name="kod_dostawcy" id="modal_kod">
+                    <input type="hidden" name="nazwa_dostawcy" id="modal_nazwa">
+                    <input type="hidden" name="kwota" id="modal_kwota">
+                    <input type="hidden" name="waluta" id="modal_waluta">
+                    
+                    <div class="alert alert-info py-2 mb-3">
+                        Kopiujesz zamówienie <strong id="display_numer"></strong>.<br>
+                        Dostawca: <strong id="display_nazwa"></strong>
+                    </div>
+
+                    <!-- Sekcja NIP znika, gdy dostawca już jest w systemie -->
+                    <div class="mb-3" id="sekcja_nip">
+                        <label class="form-label">NIP Dostawcy (nowy kontrahent w bazie)</label>
+                        <input type="text" class="form-control" name="nip" id="modal_nip" placeholder="Wpisz NIP by dodać firmę do bazy">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Dokument zamówienia (wymagany PDF)</label>
+                        <input type="file" class="form-control" name="plik_pdf" accept=".pdf" required>
+                    </div>
+                </div>
+                <div class="modal-footer border-top">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Anuluj</button>
+                    <button type="submit" class="btn custom-btn-main">Skopiuj na Biurko</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Tablica bezpiecznie załadowana przez JSON
+    const znaniKontrahenci = {{ znani_kontrahenci|safe }};
+
+    function wypelnijDane(numer, data, kod, nazwa, kwota, waluta) {
+        document.getElementById('modal_numer').value = numer;
+        document.getElementById('modal_data').value = data;
+        document.getElementById('modal_kod').value = kod;
+        document.getElementById('modal_nazwa').value = nazwa;
+        document.getElementById('modal_kwota').value = kwota.replace(',', '.'); 
+        document.getElementById('modal_waluta').value = waluta;
+        document.getElementById('display_numer').innerText = numer;
+        document.getElementById('display_nazwa').innerText = nazwa;
+        
+        const sekcjaNip = document.getElementById('sekcja_nip');
+        const inputNip = document.getElementById('modal_nip');
+        
+        // ZMIANA: Wymuszamy konwersję na tekst i usuwamy wszelkie niewidoczne spacje
+        const czystyKod = String(kod).trim();
+        
+        if (znaniKontrahenci.includes(czystyKod)) {
+            // Znamy go - ukrywamy NIP
+            sekcjaNip.style.display = 'none';
+            inputNip.removeAttribute('required');
+            inputNip.value = ''; // Zabezpieczenie: czyścimy zawartość, żeby nie wysłać śmieci
+        } else {
+            // Nowy - pokazujemy NIP i wymuszamy wypełnienie
+            sekcjaNip.style.display = 'block';
+            inputNip.setAttribute('required', 'required');
+        }
+    }
+</script>
+{% endblock %}

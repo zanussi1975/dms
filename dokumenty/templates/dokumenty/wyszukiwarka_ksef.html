@@ -1,0 +1,153 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container-fluid px-4 py-3 full-height-wrapper">
+    <div class="row mb-3 flex-shrink-0">
+        <div class="col-12">
+            <h2 class="fw-bold mb-1">🔍 Wyszukiwarka KSeF na żywo</h2>
+            <p class="custom-text-muted text-muted mb-0">Sprawdź bezpośrednio na serwerach Ministerstwa Finansów faktury wystawione na Twoją firmę.</p>
+        </div>
+    </div>
+
+    <div class="row full-height-row">
+        <!-- LEWA STRONA: Pionowe Menu Nawigacyjne -->
+        <div class="col-md-3 sidebar-col mb-3 mb-md-0">
+            <div class="card shadow-sm border-0 sidebar-card p-3 rounded-3 h-100">
+                <h6 class="text-uppercase custom-text-muted fs-7 fw-bold px-3 mb-3 text-muted">Nawigacja</h6>
+                <div class="list-group list-group-flush gap-1">
+                    <a href="{% url 'moje_biurko' %}" class="sidebar-item"><i class="bi bi-inbox me-2"></i> Biurko</a>
+                    <a href="{% url 'zamowienia_corim' %}" class="sidebar-item"><i class="bi bi-hdd-network me-2"></i> Moje Zamówienia CORIM</a>
+                    <a href="{% url 'archiwum_firmowe' %}" class="sidebar-item"><i class="bi bi-folder2-open me-2"></i> Archiwum firmowe</a>
+                    <a href="{% url 'archiwum_osobiste' %}" class="sidebar-item"><i class="bi bi-person-workspace me-2"></i> Archiwum osobiste</a>
+                    <a href="{% url 'dokumenty_zablokowane' %}" class="sidebar-item"><i class="bi bi-slash-circle me-2"></i> Dokumenty zablokowane</a>
+                    <a href="{% url 'wyszukiwarka_ksef' %}" class="sidebar-item active"><i class="bi bi-search me-2"></i> Wyszukiwarka KSeF</a>
+                    <a href="{% url 'ustawienia_profilu' %}" class="sidebar-item"><i class="bi bi-gear me-2"></i> Ustawienia konta</a>
+                </div>            
+            </div>
+        </div>
+
+        <!-- PRAWA STRONA: Tabela i filtry -->
+        <div class="col-md-9 content-col">
+            <div class="card shadow-sm border-0 h-100 d-flex flex-column">
+                
+                <!-- Pasek filtrów z datami -->
+                <div class="card-header custom-card-header d-flex justify-content-between align-items-center py-3 flex-shrink-0">
+                    <form method="GET" class="d-flex w-100 align-items-center gap-3">
+                        <span class="fw-bold">Okres pobierania:</span>
+                        <div class="input-group input-group-sm w-auto shadow-sm">
+                            <span class="input-group-text">Od</span>
+                            <input type="date" name="data_od" class="form-control" value="{{ data_od|default:'' }}" required>
+                        </div>
+                        <div class="input-group input-group-sm w-auto shadow-sm">
+                            <span class="input-group-text">Do</span>
+                            <input type="date" name="data_do" class="form-control" value="{{ data_do|default:'' }}" required>
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-primary shadow-sm">
+                            <i class="bi bi-cloud-arrow-down-fill me-1"></i> Szukaj w KSeF
+                        </button>
+
+                        {% if numery_do_pobrania %}
+                        <div class="ms-auto border-start ps-3">
+                            <button type="submit" form="importForm" class="btn btn-sm custom-btn-main shadow-sm fw-bold">
+                                <i class="bi bi-download me-1"></i> Zaimportuj widoczne dokumenty ({{ wyniki|length }})
+                            </button>
+                        </div>
+                        {% endif %}
+                    </form>
+
+                    {% if numery_do_pobrania %}
+                    <form id="importForm" method="POST" action="{% url 'importuj_zbiorczo_ksef' %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="numery_ksef" value="{{ numery_do_pobrania }}">
+                    </form>
+                    {% endif %}
+                </div>
+                
+                <div class="card-body custom-card-body p-0 table-responsive table-container-scrollable flex-grow-1">
+                    
+                    {% if blad %}
+                        <div class="alert alert-danger m-3 border-0 shadow-sm">
+                            <strong>Błąd!</strong> {{ blad }}
+                        </div>
+                    {% endif %}
+
+                    {% if not data_od and not data_do %}
+                        <div class="p-5 text-center text-muted">
+                            <h3>🔍</h3>
+                            <em>Wybierz zakres dat w formularzu powyżej, aby odpytać serwery MF.</em>
+                        </div>
+                    {% else %}
+                        <table class="table custom-table mb-0 align-middle">
+                            <thead>
+                                <tr>
+                                    <th class="ps-3">Data Wystawienia</th>
+                                    <th>Numer Faktury</th>
+                                    <th>Kontrahent</th> 
+                                    <th>Numer KSeF</th>
+                                    <th>Kwota Netto</th>
+                                    <th>Waluta</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for inv in wyniki %}
+                                <tr>
+                                    <td class="ps-3">{{ inv.issue_date }}</td>
+                                    <td><strong>{{ inv.invoice_number }}</strong></td>
+                                    <td>{{ inv.contractor_name }}</td>
+                                    <td><small class="text-muted">{{ inv.ksef_number }}</small></td>
+                                    <td><strong>{{ inv.net_amount }}</strong></td>
+                                    <td>{{ inv.currency }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center py-5 text-muted">
+                                        <em>Wszystkie dokumenty z tego okresu zostały już pobrane do systemu.</em>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- NOWOŚĆ: Ukryta nakładka ładowania -->
+<div id="loadingOverlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(255, 255, 255, 0.85); z-index: 9999; flex-direction: column; justify-content: center; align-items: center; backdrop-filter: blur(3px);">
+    <div class="spinner-border text-primary mb-3" role="status" style="width: 4rem; height: 4rem;">
+        <span class="visually-hidden">Ładowanie...</span>
+    </div>
+    <h3 class="fw-bold text-primary shadow-sm" id="loadingText">Trwa komunikacja z KSeF...</h3>
+    <p class="text-muted" id="loadingSubtext">Proszę czekać, to może potrwać dłuższą chwilę.</p>
+</div>
+
+<!-- NOWOŚĆ: Skrypt aktywujący ekran ładowania przy wysyłaniu formularzy -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const searchForm = document.querySelector('form[method="GET"]');
+        const importForm = document.getElementById('importForm');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const loadingText = document.getElementById('loadingText');
+        const loadingSubtext = document.getElementById('loadingSubtext');
+
+        // Obsługa przycisku "Szukaj w KSeF"
+        if (searchForm) {
+            searchForm.addEventListener('submit', function() {
+                loadingText.innerText = "Szukam faktur na serwerach Ministerstwa Finansów...";
+                loadingSubtext.innerText = "Proszę czekać, trwa pobieranie metadanych.";
+                loadingOverlay.style.display = 'flex';
+            });
+        }
+
+        // Obsługa przycisku "Zaimportuj widoczne dokumenty"
+        if (importForm) {
+            importForm.addEventListener('submit', function() {
+                loadingText.innerText = "Trwa pobieranie i generowanie dokumentów PDF...";
+                loadingSubtext.innerText = "Proszę nie odświeżać strony. Proces może potrwać kilkanaście sekund w zależności od liczby faktur.";
+                loadingOverlay.style.display = 'flex';
+            });
+        }
+    });
+</script>
+{% endblock %}

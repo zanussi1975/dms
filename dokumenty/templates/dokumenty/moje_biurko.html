@@ -1,0 +1,273 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<!-- Główny kontener zablokowany na wysokość ekranu -->
+<div class="container-fluid px-4 py-3 full-height-wrapper">
+    
+    <!-- Nagłówek powitalny (stały) -->
+    <div class="row mb-3 flex-shrink-0">
+        <div class="col-12">
+            <h2 class="fw-bold mb-1">
+                Witaj, 
+                {% if request.user.first_name %}
+                    {{ request.user.first_name }} {{ request.user.last_name }}! 👋
+                {% else %}
+                    {{ request.user.username }}! 👋
+                {% endif %}
+            </h2>
+            <p class="custom-text-muted text-muted mb-0">Oto podsumowanie dokumentów oczekujących na Twoje działania.</p>
+        </div>
+    </div>
+
+    <!-- Główny wiersz rozciągający się do samego dołu -->
+    <div class="row full-height-row">
+        
+        <!-- LEWA STRONA: Pionowe Menu Nawigacyjne -->
+        <div class="col-md-3 sidebar-col mb-3 mb-md-0">
+            <div class="card shadow-sm border-0 sidebar-card p-3 rounded-3 h-100">
+                <h6 class="text-uppercase custom-text-muted fs-7 fw-bold px-3 mb-3 text-muted">Nawigacja</h6>
+                <div class="list-group list-group-flush gap-1">
+                    <a href="{% url 'moje_biurko' %}" class="sidebar-item" active><i class="bi bi-inbox me-2"></i> Biurko</a>
+                    <a href="{% url 'zamowienia_corim' %}" class="sidebar-item"><i class="bi bi-hdd-network me-2"></i> Moje Zamówienia CORIM</a>
+                    <a href="{% url 'archiwum_firmowe' %}" class="sidebar-item"><i class="bi bi-folder2-open me-2"></i> Archiwum firmowe</a>
+                    <a href="{% url 'archiwum_osobiste' %}" class="sidebar-item"><i class="bi bi-person-workspace me-2"></i> Archiwum osobiste</a>
+                    <a href="{% url 'dokumenty_zablokowane' %}" class="sidebar-item"><i class="bi bi-slash-circle me-2"></i> Dokumenty zablokowane</a>
+                    <a href="{% url 'wyszukiwarka_ksef' %}" class="sidebar-item"><i class="bi bi-search me-2"></i> Wyszukiwarka KSeF</a>
+                    <a href="{% url 'ustawienia_profilu' %}" class="sidebar-item"><i class="bi bi-gear me-2"></i> Ustawienia konta</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- PRAWA STRONA: Karta z tabelą rozciągnięta na 100% wysokości -->
+        <div class="col-md-9 content-col">
+            <div class="card shadow-sm border-0 h-100 d-flex flex-column">
+                
+                <div class="card-header custom-card-header d-flex justify-content-between align-items-center py-2 flex-shrink-0">
+                    <h5 class="mb-0 text-nowrap">Dokumenty do przetworzenia</h5>
+                    
+                    <!-- NOWOŚĆ: Wyszukiwarka -->
+                    <form method="GET" class="d-flex mx-3 flex-grow-1" style="max-width: 350px;">
+                        <div class="input-group input-group-sm shadow-sm">
+                            <input type="text" name="q" class="form-control border-secondary" placeholder="Szukaj (nr, nazwa, NIP)..." value="{{ query }}">
+                            <button class="btn btn-secondary" type="submit" title="Szukaj"><i class="bi bi-search"></i></button>
+                            {% if query %}
+                                <!-- Przycisk czyszczenia (resetu) wyszukiwania -->
+                                <a href="?" class="btn btn-outline-secondary" title="Wyczyść wyszukiwanie">✖</a>
+                            {% endif %}
+                        </div>
+                    </form>
+
+                    <div class="text-nowrap">
+                        <button type="button" class="btn btn-sm custom-btn-main shadow-sm me-2" data-bs-toggle="modal" data-bs-target="#dodajDokumentModal">
+                            <i class="bi bi-plus-lg me-1"></i> Dodaj
+                        </button>
+                        <span class="badge bg-secondary rounded shadow-sm px-3 py-2">{{ faktury.count }} poz.</span>
+                    </div>
+                </div>
+                
+                <div class="card-body custom-card-body p-0 table-responsive table-container-scrollable flex-grow-1">
+                    <table class="table custom-table mb-0 align-middle">
+                        <thead>
+                            <tr>
+                                <th class="ps-3">Typ</th>
+                                <th>Nr dokumentu</th>
+                                <th>Kontrahent</th>
+                                <th>Kwota Netto</th>
+                                <th>Obecny Status</th>
+                                <th>Czeka od</th>
+                                <th class="text-end pe-3">Akcja</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for faktura in faktury %}
+                            <tr>
+                                <!-- NOWOŚĆ: Kolumna z Typem dokumentu -->
+                                <td class="ps-3">
+                                    {% if faktura.typ_dokumentu == 'FAKTURA' %}
+                                        <span class="badge bg-primary shadow-sm" style="width: 125px; display: inline-block; text-align: left;" title="Faktura"><i class="bi bi-file-earmark-text text-secondary me-1"></i> Faktura</span>
+                                    {% else %}
+                                        <span class="badge bg-success shadow-sm" style="width: 125px; display: inline-block; text-align: left;" title="Zamówienie"><i class="bi bi-box-seam me-1"></i> Zamówienie</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <strong>{{ faktura.document_number }}</strong>
+                                    
+                                    <!-- Jeśli to faktura i ma zamówienie -->
+                                    {% if faktura.typ_dokumentu == 'FAKTURA' and faktura.related_order %}
+                                        <br>
+                                        <span class="badge {% if faktura.is_fully_compliant %}bg-success{% else %}bg-warning text-dark{% endif %} shadow-sm mt-1" style="font-size: 0.65rem;" title="Kwota zamówienia: {{ faktura.related_order.net_amount }} PLN">
+                                            <i class="bi bi-link-45deg text-primary me-1"></i> {% if faktura.is_fully_compliant %}100% Zgodne z{% else %}Niepełna zgodność z{% endif %}: {{ faktura.related_order.document_number }}
+                                        </span>
+                                    <!-- Jeśli to zamówienie i ma podpiętą fakturę (używamy related_name z models.py) -->
+                                    {% elif faktura.typ_dokumentu == 'ZAMOWIENIE' and faktura.linked_invoices.exists %}
+                                        <br>
+                                        <span class="badge bg-info text-dark shadow-sm mt-1" style="font-size: 0.65rem;">
+                                            <i class="bi bi-link-45deg text-primary me-1"></i> Powiązano z fakturą
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ faktura.contractor_name }} <br><small class="custom-text-muted">NIP: {{ faktura.contractor_nip }}</small></td>
+                                <td><strong>{{ faktura.net_amount }} {{ faktura.currency }}</strong></td>
+                                <td>
+                                    {% if faktura.status == 'BLOCKED' %}
+                                        <span class="badge bg-danger shadow-sm"><i class="bi bi-slash-circle me-1"></i> {{ faktura.get_status_display }}</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary shadow-sm">{{ faktura.get_status_display }}</span>
+                                    {% endif %}
+                                </td>
+                                <td><small class="custom-text-muted">{{ faktura.updated_at|date:"d.m.Y H:i" }}</small></td>
+                                
+                                <td class="text-end pe-3">
+                                    <!-- Zmiana z btn-group na d-inline-flex z odstępem gap-2 -->
+                                    <div class="d-inline-flex gap-2 justify-content-end">
+                                        <a href="{% url 'szczegoly_faktury' faktura.id %}" class="btn btn-sm btn-primary shadow-sm" title="Przetwarzaj">
+                                            <i class="bi bi-pencil-square"></i>
+                                        </a>
+                                        
+                                        {% if faktura.status == 'BUFFER' %}
+                                        <form action="{% url 'usun_fakture' faktura.id %}" method="POST" class="m-0 p-0" style="display:inline;">
+                                            {% csrf_token %}
+                                            <!-- Usunięto klasę ms-1, flexbox sam zarządza odstępem -->
+                                            <button type="submit" class="btn btn-sm btn-outline-danger shadow-sm" onclick="return confirm('Czy na pewno chcesz bezpowrotnie usunąć ten dokument z systemu?');" title="Usuń z Bufora">
+                                                <i class="bi bi-trash3"></i>
+                                            </button>
+                                        </form>
+                                        {% else %}
+                                        <!-- Zablokowany przycisk -->
+                                        <button type="button" class="btn btn-sm btn-outline-secondary shadow-sm" title="Tego dokumentu nie można już usunąć" disabled>
+                                            <i class="bi bi-trash3"></i>
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7" class="text-center py-5 custom-text-muted">
+                                    <i class="bi bi-link-45deg text-primary me-1"></i>
+                                    <em>Hurra! Twoje biurko jest puste. Nie masz żadnych dokumentów do przetworzenia.</em>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- NOWOŚĆ: Modal (wyskakujące okienko) z formularzem wgrywania pliku -->
+<div class="modal fade" id="dodajDokumentModal" tabindex="-1" aria-labelledby="dodajDokumentModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content custom-card-body">
+            <div class="modal-header custom-card-header">
+                <h5 class="modal-title" id="dodajDokumentModalLabel">Wgraj nowy dokument</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Zamknij"></button>
+            </div>
+            <form action="{% url 'dodaj_dokument' %}" method="POST" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Rodzaj dokumentu</label>
+                        <select class="form-select" name="typ_dokumentu" required>
+                            <option value="FAKTURA"><i class="bi bi-file-earmark-text text-secondary me-1"></i> Faktura (poza KSeF)</option>
+                            <option value="ZAMOWIENIE"><i class="bi bi-box-seam me-1"></i> Zamówienie</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Numer dokumentu</label>
+                        <input type="text" class="form-control" name="numer_dokumentu" required placeholder="np. FV/2026/07/001">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Nazwa kontrahenta</label>
+                        <!-- Dodano list="contractorsList" i id="kontrahentInput" -->
+                        <input type="text" class="form-control" name="kontrahent_nazwa" id="kontrahentInput" list="contractorsList" autocomplete="off" required placeholder="Wybierz z listy lub wpisz nową...">
+                        
+                        <!-- Lista podpowiedzi generowana z bazy -->
+                        <datalist id="contractorsList">
+                            {% for kontrahent in kontrahenci %}
+                                <option value="{{ kontrahent.name }}" data-nip="{{ kontrahent.nip }}">NIP: {{ kontrahent.nip }}</option>
+                            {% endfor %}
+                        </datalist>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">NIP</label>
+                            <!-- Dodano id="nipInput" do automatycznego uzupełniania -->
+                            <input type="text" class="form-control" name="kontrahent_nip" id="nipInput">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Data wystawienia</label>
+                            <input type="date" class="form-control" name="data_wystawienia" required>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-8 mb-3">
+                            <label class="form-label">Kwota Netto</label>
+                            <input type="number" step="0.01" class="form-control" name="kwota_netto" required>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Waluta</label>
+                            <input type="text" class="form-control" name="waluta" value="PLN" required maxlength="3" style="text-transform: uppercase;">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Plik PDF</label>
+                        <input type="file" class="form-control" name="plik_pdf" accept=".pdf" required>
+                    </div>
+                </div>
+                <div class="modal-footer border-top custom-border">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Anuluj</button>
+                    <button type="submit" class="btn custom-btn-main">Zapisz i wrzuć na biurko</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>                
+
+<script>
+    // Zapamiętujemy początkowy stan biurka przy załadowaniu strony
+    let poczatkowaIlosc = {{ faktury.count|default:"0" }};
+
+    // Uruchamiamy radar rzadziej - co 30 sekund, żeby nie obciążać przeglądarki
+    console.log("Poczatkowa liczba faktur: ", poczatkowaIlosc)
+    setInterval(function() {
+        fetch("{% url 'sprawdz_biurko' %}")
+            .then(response => response.json())
+            .then(data => {
+                // Odświeżamy stronę WYŁĄCZNIE wtedy, gdy faktycznie zmieniła się liczba dokumentów na biurku
+                console.log("ile w faktur w bazie: ", data.ilosc)
+                if (data.ilosc !== poczatkowaIlosc) {
+                    window.location.reload();
+                }
+            })
+            .catch(error => console.log("Błąd sprawdzania biurka: ", error));
+    }, 15000); 
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const kontrahentInput = document.getElementById('kontrahentInput');
+        const nipInput = document.getElementById('nipInput');
+        
+        if (kontrahentInput) {
+            kontrahentInput.addEventListener('input', function(e) {
+                const inputVal = e.target.value;
+                const datalist = document.getElementById('contractorsList');
+                const options = datalist.getElementsByTagName('option');
+                
+                // Szukamy, czy wpisana wartość pasuje do jakiejkolwiek opcji na liście
+                for (let i = 0; i < options.length; i++) {
+                    if (options[i].value === inputVal) {
+                        const nip = options[i].getAttribute('data-nip');
+                        if (nip && nip !== 'None' && nip !== 'BRAK_NIP') {
+                            nipInput.value = nip; // Wstawiamy znaleziony NIP
+                        }
+                        break;
+                    }
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}
