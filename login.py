@@ -5,24 +5,32 @@ import base64
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives import hashes
+from dotenv import load_dotenv
+import os
+
+
+load_dotenv()
+
 
 # ==========================================
 # 1. KONFIGURACJA ŚRODOWISKA KSeF 2.0
 # ==========================================
-BASE_URL = "https://api-demo.ksef.mf.gov.pl/v2"  # Nowy adres API v2
-NIP = "5811003905"
-USER_TOKEN = "20260108-EC-295AAB1000-1941F82CF5-17|nip-5811003905|fa9b64abadd6456f95fe025d79346f626986c27114a446e6b37ca38df3fd77d1"
+BASE_URL = os.getenv("KSEF_BASE_URL")  # Nowy adres API v2
+NIP = os.getenv("KSEF_NIP")
+USER_TOKEN = os.getenv("KSEF_USER_TOKEN")
 
 # Klucz publiczny dla API 2.0 (pobierany z GET /v2/security/public-key-certificates)
-PUBLIC_KEY_PEM = b"""-----BEGIN PUBLIC KEY-----
-MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxsyeiYiWB2+KFxEpQGoN
-Qa6W8Pc4kWGl8V+sBMdW3Fqh0lhKiqKfpH5RWLDmZ30EzkKJ5+IdaWYFoijhYxDB
-IBhINVQKlBZvEVd6CfPJUJypa94eRO5cc6IPNI35aMhfKP/Kc4A/OiT2J4nyCz6B
-V98xOXCAlyDPD73XM6O2ormL6gUb673zvjOIakf39tAPPVgWIDuX7GDZYGebN7LX
-oGvjPo5YDqC2KN51ofLbO+n74iei5OaGN94Ap52vI7uzK2g/hQslOd0Avl2U1kwR
-nnF0yzwbDzRrHqPCHUYxVp5nHdo+jHe1CNoa6gt0m6pn1StYcitSXKg2hTNjnes6
-TQIDAQAB
------END PUBLIC KEY-----"""
+PUBLIC_KEY_PEM = os.getenv("KSEF_PUBLIC_KEY").encode("ascii")
+
+# b"""-----BEGIN PUBLIC KEY-----
+# MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxsyeiYiWB2+KFxEpQGoN
+# Qa6W8Pc4kWGl8V+sBMdW3Fqh0lhKiqKfpH5RWLDmZ30EzkKJ5+IdaWYFoijhYxDB
+# IBhINVQKlBZvEVd6CfPJUJypa94eRO5cc6IPNI35aMhfKP/Kc4A/OiT2J4nyCz6B
+# V98xOXCAlyDPD73XM6O2ormL6gUb673zvjOIakf39tAPPVgWIDuX7GDZYGebN7LX
+# oGvjPo5YDqC2KN51ofLbO+n74iei5OaGN94Ap52vI7uzK2g/hQslOd0Avl2U1kwR
+# nnF0yzwbDzRrHqPCHUYxVp5nHdo+jHe1CNoa6gt0m6pn1StYcitSXKg2hTNjnes6
+# TQIDAQAB
+# -----END PUBLIC KEY-----"""
 
 def login_to_ksef_v2(nip: str, user_token: str, pem_key: bytes) -> str:
     headers = {"Content-Type": "application/json", "Accept": "application/json"}
