@@ -365,8 +365,8 @@ def szczegoly_faktury(request, faktura_id):
                     wkhtmltopdf_path = r'C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe'
                     pdf_config = pdfkit.configuration(wkhtmltopdf=wkhtmltopdf_path)
                     options = {
-                        'page-size': 'A4', 'margin-top': '15mm', 'margin-right': '15mm',
-                        'margin-bottom': '15mm', 'margin-left': '15mm', 'encoding': "UTF-8", 'no-outline': None
+                        'page-size': 'A4', 'margin-top': '15mm', 'margin-right': '8mm',
+                        'margin-bottom': '15mm', 'margin-left': '8mm', 'encoding': "UTF-8", 'no-outline': None
                     }
                     pdf_bytes = pdfkit.from_string(html_string, False, configuration=pdf_config, options=options)
                     
@@ -416,9 +416,9 @@ def szczegoly_faktury(request, faktura_id):
                 options = {
                     'page-size': 'A4',
                     'margin-top': '15mm',
-                    'margin-right': '15mm',
+                    'margin-right': '8mm',
                     'margin-bottom': '15mm',
-                    'margin-left': '15mm',
+                    'margin-left': '8mm',
                     'encoding': "UTF-8",
                     'no-outline': None
                 }
@@ -536,11 +536,54 @@ def szczegoly_faktury(request, faktura_id):
                     user=request.user, 
                     previous_status=faktura.status, 
                     new_status=faktura.status,
-                    comment=f'<i class="bi bi-chat-text text-secondary me-1"></i> <strong>Dodano komentarz:</strong><br><span class="text-muted small">{komentarz}</span>'
+                    comment=f'<i class="bi bi-chat-text text-secondary me-1"></i> <strong>Dodano komentarz: </strong><br><span class="text-muted small">{komentarz}</span>'
                 )
                 
                 messages.success(request, "Twój komentarz został pomyślnie dodany do historii obiegu.")
                 return redirect('szczegoly_faktury', faktura_id=faktura.id)
+            
+            # 13. BIEŻĄCE GENEROWANIE HISTORII OBIEGU (W NOWEJ KARCIE)
+            elif akcja == 'generuj_biezacy_pdf':
+                from django.http import HttpResponse # Upewnij się, że masz to zaimportowane na górze pliku
+                
+                # 1. Zapisujemy log do historii PRZED wygenerowaniem, żeby ten wpis też był na PDF!
+                DocumentHistory.objects.create(
+                    document=faktura, 
+                    user=request.user, 
+                    previous_status=faktura.status, 
+                    new_status=faktura.status,
+                    comment='<i class="bi bi-printer text-info me-1"></i> Wydruk historii obiegu (PDF).'
+                )
+                
+                # 2. Pobieramy pełną historię (włącznie z wpisem powyżej)
+                historia_pelna = faktura.history.all().order_by('created_at')
+                
+                # 3. Definiujemy flagę informującą, czy dokument jest jeszcze procedowany
+                w_obiegu = faktura.status not in [DocumentStatus.ARCHIVED]
+                
+                context = {
+                    'faktura': faktura,
+                    'historia': historia_pelna,
+                    'wygenerowal': request.user,
+                    'data_generacji': timezone.now(),
+                    'w_obiegu': w_obiegu, # Przekazujemy to do szablonu PDF
+                }
+                
+                html_string = render_to_string('dokumenty/raport_historii.html', context)
+                
+                wkhtmltopdf_path = r'C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe'
+                pdf_config = pdfkit.configuration(wkhtmltopdf=wkhtmltopdf_path)
+                options = {
+                    'page-size': 'A4', 'margin-top': '15mm', 'margin-right': '8mm',
+                    'margin-bottom': '15mm', 'margin-left': '8mm', 'encoding': "UTF-8", 'no-outline': None
+                }
+                
+                pdf_bytes = pdfkit.from_string(html_string, False, configuration=pdf_config, options=options)
+                
+                # 4. Zwracamy wynik bezpośrednio jako wyświetlany dokument (nie zapisujemy go w bazie jako załącznik)
+                response = HttpResponse(pdf_bytes, content_type='application/pdf')
+                response['Content-Disposition'] = f'inline; filename="Historia_Biezaca_{faktura.document_number.replace("/", "_")}.pdf"'
+                return response
             
             
         except ValidationError as e:
@@ -1073,8 +1116,8 @@ def importuj_zbiorczo_ksef(request):
                 
                 # 3. Konwersja do PDF
                 pdfkit.from_file(sciezka_html, sciezka_pdf, configuration=pdf_config, options={
-                    'page-size': 'A4', 'margin-top': '15mm', 'margin-right': '15mm', 
-                    'margin-bottom': '15mm', 'margin-left': '15mm', 'encoding': "UTF-8", 'quiet': ''
+                    'page-size': 'A4', 'margin-top': '15mm', 'margin-right': '8mm', 
+                    'margin-bottom': '15mm', 'margin-left': '8mm', 'encoding': "UTF-8", 'quiet': ''
                 })
                 
                 # 4. Parsowanie danych do bazy

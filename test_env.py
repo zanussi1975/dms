@@ -13,7 +13,7 @@ NIP = os.getenv("KSEF_NIP")
 USER_TOKEN = os.getenv("KSEF_USER_TOKEN")
 
 # Klucz publiczny dla API 2.0 (pobierany z GET /v2/security/public-key-certificates)
-PUBLIC_KEY_PEM = os.getenv("KSEF_PUBLIC_KEY")
+PUBLIC_KEY_PEM = os.getenv("KSEF_PUBLIC_KEY").encode("ascii")
 
 
 print(f"BASE URL = {BASE_URL}")

@@ -337,8 +337,18 @@
 
         <!-- SEKCJA 3: HISTORIA OBIEGU -->
         <div class="card shadow-sm mb-3 border-0">
-            <div class="card-header custom-card-header">
+            <div class="card-header custom-card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"><i class="bi bi-clock-history text-muted me-2"></i> Historia obiegu</h5>
+                
+                <!-- NOWOŚĆ: Formularz generujący PDF w nowej karcie -->
+                {% if faktura.status != 'ARCHIVED' %}
+                    <form method="POST" target="_blank" class="m-0 p-0" onsubmit="setTimeout(function(){ window.location.reload(); }, 1500);">
+                        {% csrf_token %}
+                        <button type="submit" name="akcja" value="generuj_biezacy_pdf" class="btn btn-sm btn-outline-primary shadow-sm" title="Drukuj bieżącą historię">
+                            <i class="bi bi-printer me-1"></i> Drukuj
+                        </button>
+                    </form>
+                {% endif %}
             </div>
             <ul class="list-group list-group-flush custom-card-body rounded-bottom" style="max-height: 350px; overflow-y: auto;">
                 {% for wpis in historia %}

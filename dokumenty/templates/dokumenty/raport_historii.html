@@ -10,7 +10,7 @@
         }
         body { 
             font-family: "Segoe UI", Arial, sans-serif; 
-            font-size: 11px; 
+            font-size: 12px; 
             color: #212529; 
             line-height: 1.3; 
         }
@@ -40,12 +40,12 @@
         .info-box td { text-align: left; padding: 2px 0; }
         
         /* TABELA HISTORII OBIEGU */
-        .history-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        .history-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 12px !important;}
         .history-table th, .history-table td { 
             border-bottom: 1px solid #dee2e6; 
             padding: 6px 4px; 
             text-align: left; 
-            vertical-align: top;
+            vertical-align: top; 
         }
         .history-table th { background-color: #e9ecef; font-weight: 600; color: #495057; }
         
@@ -102,13 +102,21 @@
     </div>
 
     <!-- TREŚĆ WŁAŚCIWA (HISTORIA) -->
-    <h3 style="font-size: 14px; color: #2C3E50; margin-bottom: 10px;">Zapis ścieżki akceptacji</h3>
+    {% if w_obiegu %}
+        <h3 style="font-size: 14px; color: #2C3E50; margin-bottom: 10px;">
+            Zapis ścieżki akceptacji.
+            <span style="float: right;">Uwaga - dokument w obiegu !!!</span>
+        </h3>
+    {% else %}
+        <h3 style="font-size: 14px; color: #2C3E50; margin-bottom: 10px;">Zapis ścieżki akceptacji</h3>
+    {% endif %} 
+    
     <table class="history-table">
         <thead>
             <tr>
                 <th style="width: 15%;">Data i Czas</th>
                 <th style="width: 25%;">Użytkownik</th>
-                <th style="width: 20%;">Nowy Etap</th>
+                <th style="width: 20%;">Status dokumentu</th>
                 <th style="width: 40%;">Akcja / Komentarz</th>
             </tr>
         </thead>
