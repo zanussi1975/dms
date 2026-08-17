@@ -1,5 +1,6 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_POST
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.contrib.auth import get_user_model # Do pobrania użytkowników
@@ -1219,3 +1220,60 @@ def dokumenty_zablokowane(request):
         'query': query
     }
     return render(request, 'dokumenty/zablokowane.html', context)    
+
+
+@login_required
+def workflow_editor_view(request):
+    """
+    Ten widok po prostu ładuje stronę HTML z naszym edytorem Drawflow.
+    """
+    return render(request, 'dokumenty/workflow_editor.html')
+
+
+@require_POST
+def save_workflow(request):
+    try:
+        # 1. Odbiór danych z frontendu
+        payload = json.loads(request.body)
+        doc_type = payload.get('document_type')
+        diagram_data = payload.get('diagram_data')
+
+        # Zabezpieczenie przed uszkodzonym żądaniem
+        if not doc_type or not diagram_data:
+            return JsonResponse({'status': 'error', 'message': 'Brak typu dokumentu lub danych diagramu.'}, status=400)
+
+        # 2. Słownik mapujący wybór z listy na nazwę pliku
+        file_mapping = {
+            'faktura': 'fa.json',
+            'zamowienie': 'order.json',
+            'urlop': 'urlop.json'
+        }
+
+        # Pobieramy docelową nazwę pliku
+        filename = file_mapping.get(doc_type)
+        
+        # Jeśli ktoś przesłałby zmanipulowany typ dokumentu z przeglądarki
+        if not filename:
+            return JsonResponse({'status': 'error', 'message': f'Nieobsługiwany typ dokumentu: {doc_type}'}, status=400)
+
+        # 3. Ustalenie ścieżki i zapis
+        app_static_dir = os.path.join(settings.BASE_DIR, 'dokumenty', 'static', 'flow')
+        os.makedirs(app_static_dir, exist_ok=True)
+        
+        file_path = os.path.join(app_static_dir, filename)
+        
+        # Ważne: Zapisujemy tylko diagram_data (bez doc_type), aby Drawflow mógł to wczytać!
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(diagram_data, f, ensure_ascii=False, indent=4)
+            
+        return JsonResponse({
+            'status': 'success', 
+            'message': f'Zapisano pomyślnie jako {filename}'
+        })
+
+    except json.JSONDecodeError:
+        return JsonResponse({'status': 'error', 'message': 'Otrzymano nieprawidłowy format JSON.'}, status=400)
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': f'Błąd serwera: {str(e)}'}, status=500)
+    
+    

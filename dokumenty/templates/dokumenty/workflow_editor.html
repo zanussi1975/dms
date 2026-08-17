@@ -1,0 +1,370 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<!-- Zależności -->
+<script src="https://cdn.jsdelivr.net/gh/jerosoler/Drawflow/dist/drawflow.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.13.0/js/all.min.js" integrity="sha256-KzZiKy0DWYsnwMF+X1DvQngQ2/FxF7MF3Ff72XcpuPs=" crossorigin="anonymous"></script>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jerosoler/Drawflow@0.0.48/dist/drawflow.min.css">
+<link rel="stylesheet" href="{% static 'css/beautiful.css' %}" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.13.0/css/all.min.css" integrity="sha256-h20CPZ0QyXlBuAw7A+KluUYx/3pK+c7lYEpqLTlxjYQ=" crossorigin="anonymous" />
+<link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@9"></script>
+<script src="https://unpkg.com/micromodal/dist/micromodal.min.js"></script>
+
+
+
+<h2 class="mb-4">Edytor Przepływu Dokumentu</h2>
+    
+<div class="wrapper">
+    <div class="col">
+        <!-- Zmieniłem data-node na bardziej opisowe i zgodne z dodawanymi klockami -->
+        <div class="drag-drawflow" draggable="true" ondragstart="drag(event)" data-node="start">
+            <i class="fas fa-play"></i><span> Nowy dokument</span>
+        </div>
+        <div class="drag-drawflow" draggable="true" ondragstart="drag(event)" data-node="opis">
+            <i class="fas fa-edit"></i><span> Opis merytoryczny</span>
+        </div>
+        <div class="drag-drawflow" draggable="true" ondragstart="drag(event)" data-node="warunek">
+            <i class="fas fa-code-branch"></i><span> Warunek (Tak/Nie)</span>
+        </div>
+        <div class="drag-drawflow" draggable="true" ondragstart="drag(event)" data-node="pytanie">
+            <i class="fas fa-code-branch"></i><span> Pytanie (Tak/Nie)</span>
+        </div>
+        <div class="drag-drawflow" draggable="true" ondragstart="drag(event)" data-node="akceptacja">
+            <i class="fas fa-check-circle"></i><span> Akceptacja</span>
+        </div>
+        <div class="drag-drawflow" draggable="true" ondragstart="drag(event)" data-node="kontener">
+            <i class="fas fa-archive"></i><span> Kontener</span>
+        </div>
+        <div class="drag-drawflow" draggable="true" ondragstart="drag(event)" data-node="email">
+            <i class="fas fa-envelope"></i><span> Wyślij Email</span>
+        </div>
+    </div>      
+    
+    <div class="col-right">
+        <div class="menu">
+            <ul>
+                <li class="selected">Projektant</li>
+            </ul>
+        </div>
+
+        <div id="drawflow" ondrop="drop(event)" ondragover="allowDrop(event)">
+            <div class="btn-open dropdown" style="padding: 0; background: transparent; border: none;">
+                <button class="btn btn-light btn-sm dropdown-toggle shadow-sm" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="border: 1px solid #ccc; background: white; padding: 7px 10px">
+                    📂 Otwórz
+                </button>
+                <ul class="dropdown-menu shadow-sm custom-dropdown-menu">
+                    <!-- Przekazujemy dokładną nazwę pliku jako argument do funkcji loadDiagram -->
+                    <li><a class="dropdown-item custom-dropdown-item" href="#" onclick="loadDiagram('fa.json'); return false;">Faktura</a></li>
+                    <li><a class="dropdown-item custom-dropdown-item" href="#" onclick="loadDiagram('order.json'); return false;">Zamówienie</a></li>
+                    <li><a class="dropdown-item custom-dropdown-item" href="#" onclick="loadDiagram('urlop.json'); return false;">Wniosek urlopowy</a></li>
+                </ul>
+            </div>
+            <div class="btn-export" onclick="saveWorkflow()">Zapisz</div>
+            <div class="btn-clear" onclick="window.editor.clearModuleSelected()">Wyczyść</div>
+            <div class="btn-lock">
+                <i id="lock" class="fas fa-lock" onclick="window.editor.editor_mode='fixed'; changeMode('lock');"></i>
+                <i id="unlock" class="fas fa-lock-open" onclick="window.editor.editor_mode='edit'; changeMode('unlock');" style="display:none;"></i>
+            </div>
+            <div class="bar-zoom">
+                <i class="fas fa-search-minus" onclick="window.editor.zoom_out()"></i>
+                <i class="fas fa-search" onclick="window.editor.zoom_reset()"></i>
+                <i class="fas fa-search-plus" onclick="window.editor.zoom_in()"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const csrfToken = "{{ csrf_token }}";
+    
+    // Zmienne pomocnicze dla przeciągania
+    var mobile_item_selec = '';
+    var mobile_last_move = null;
+
+    document.addEventListener("DOMContentLoaded", function() {
+        var id = document.getElementById("drawflow");
+        // Poprawna inicjalizacja na obiekcie globalnym (window)
+        window.editor = new Drawflow(id);
+        window.editor.reroute = true;
+        
+        window.editor.start();
+        
+        // Zdarzenia edytora (opcjonalne, ale bardzo przydatne do logowania w konsoli)
+        window.editor.on('nodeCreated', function(id) {
+            console.log("Stworzono węzeł " + id);
+        });
+    });
+
+    function saveWorkflow() {
+        // 1. Pobieramy całą strukturę z Drawflow
+        const exportData = window.editor.export();
+        
+        // 2. Szukamy węzła startowego (Nowy dokument) w wyeksportowanych danych
+        const nodes = exportData.drawflow.Home.data;
+        let startNode = null;
+
+        for (const key in nodes) {
+            if (nodes[key].name === 'start') {
+                startNode = nodes[key];
+                break; // Znaleźliśmy węzeł startowy, przerywamy pętlę
+            }
+        }
+
+        // 3. Walidacja: Czy węzeł startowy istnieje na płótnie?
+        if (!startNode) {
+            Swal.fire({
+                title: 'Brak węzła startowego!',
+                text: 'Twój schemat musi zawierać klocek "Nowy dokument", aby mógł zostać zapisany.',
+                icon: 'warning',
+                target: document.getElementById('drawflow'),
+                customClass: { container: 'position-absolute' },
+                backdrop: false,
+                toast: true,
+                position: 'top-end',
+                timer: 3000,
+                showConfirmButton: false
+            });
+
+            return; // Zatrzymujemy dalsze wykonywanie funkcji (nie wysyłamy na serwer)
+        }
+
+        // 4. Pobieramy wybrany typ dokumentu z selecta (w Twoim kodzie ma on atrybut df-dzial)
+        const docType = startNode.data.dzial;
+
+        // 5. Przygotowujemy nowy obiekt do wysyłki (Typ dokumentu + Dane diagramu)
+        const payload = {
+            document_type: docType,
+            diagram_data: exportData
+        };
+        
+        // 6. Wysyłka na serwer
+        fetch('{% url "save_workflow" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if(data.status === 'success') {
+                Swal.fire({
+                    title: 'Zapisano!',
+                    text: data.message, // Wyświetli np. "Zapisano pomyślnie jako fa.json"
+                    icon: 'success',
+                    target: document.getElementById('drawflow'),
+                    customClass: { container: 'position-absolute' },
+                    backdrop: false,
+                    toast: true,
+                    position: 'top-end',
+                    timer: 3000,
+                    showConfirmButton: false
+                });
+            } else {
+                Swal.fire({
+                    title: 'Błąd',
+                    text: data.message,
+                    icon: 'error',
+                    target: document.getElementById('drawflow')
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Błąd:', error);
+            Swal.fire({
+                title: 'Błąd',
+                text: 'Wystąpił problem z połączeniem z serwerem.',
+                icon: 'error',
+                target: document.getElementById('drawflow')
+            });
+        });
+    }
+    // --- FUNKCJE OBSŁUGI ZDARZEŃ ZWIĄZANYCH Z UI (Tryb blokady) ---
+    function changeMode(mode) {
+        if(mode == 'lock') {
+            document.getElementById('lock').style.display = 'none';
+            document.getElementById('unlock').style.display = 'inline-block';
+        } else {
+            document.getElementById('lock').style.display = 'inline-block';
+            document.getElementById('unlock').style.display = 'none';
+        }
+    }
+
+    // --- FUNKCJE OBSŁUGI DRAG & DROP (KLUCZOWE!) ---
+    
+    // Wywoływane gdy zaczynasz ciągnąć klocek z lewego panelu
+    function drag(ev) {
+        if (ev.type === "touchstart") {
+            mobile_item_selec = ev.target.closest(".drag-drawflow").getAttribute('data-node');
+        } else {
+            // Zapisujemy typ klocka (z atrybutu data-node) do transferu danych
+            ev.dataTransfer.setData("node", ev.target.getAttribute('data-node'));
+        }
+    }
+
+    // Pozwala na upuszczenie elementu na płótnie
+    function allowDrop(ev) {
+        ev.preventDefault();
+    }
+
+    // Wywoływane po upuszczeniu klocka na płótnie
+    function drop(ev) {
+        if (ev.type === "touchend") {
+            // Logika dla urządzeń mobilnych (pominięta dla uproszczenia w tym przykładzie,
+            // ale jeśli chcesz obsługę mobilną, daj znać).
+        } else {
+            ev.preventDefault();
+            // Odczytujemy typ klocka, który puściliśmy
+            var data = ev.dataTransfer.getData("node");
+            addNodeToDrawFlow(data, ev.clientX, ev.clientY);
+        }
+    }
+
+    // Funkcja dodająca właściwy HTML po rzuceniu na płótno
+    function addNodeToDrawFlow(name, pos_x, pos_y) {
+        // Ponieważ płótno może być przesunięte/przybliżone, musimy przekalkulować koordynaty myszki na koordynaty obszaru roboczego
+        if(window.editor.editor_mode === 'fixed') { return false; }
+        
+        pos_x = pos_x * ( window.editor.precanvas.clientWidth / (window.editor.precanvas.clientWidth * window.editor.zoom)) - (window.editor.precanvas.getBoundingClientRect().x * ( window.editor.precanvas.clientWidth / (window.editor.precanvas.clientWidth * window.editor.zoom)));
+        pos_y = pos_y * ( window.editor.precanvas.clientHeight / (window.editor.precanvas.clientHeight * window.editor.zoom)) - (window.editor.precanvas.getBoundingClientRect().y * ( window.editor.precanvas.clientHeight / (window.editor.precanvas.clientHeight * window.editor.zoom)));
+
+        let html = '';
+        
+        // Na podstawie atrybutu "data-node", dodajemy odpowiedni kod
+        switch (name) {
+            case 'start':
+                html = `<div>
+                            <div class="title-box"><i class="fas fa-play"></i> Nowy dokument</div>
+                            <div class="box">
+                                <p style="margin: 0 0 5px 0; font-size: 11px;">Wybierz typ dokumentu:</p>
+                                <select df-dzial style="font-size: 12px;">
+                                    <option value="faktura">Faktura</option>
+                                    <option value="zamowienie">Zamówienie</option>
+                                    <option value="urlop">Wniosek urlopowy</option>
+                                </select>
+                            </div>
+                        </div>`;
+                window.editor.addNode('start', 0, 1, pos_x, pos_y, 'start', {}, html);
+                break;
+            case 'opis':
+                html = `<div>
+                            <div class="title-box"><i class="fas fa-edit"></i> Opis merytoryczny</div>
+                            <div class="box">
+                                <p style="margin: 0 0 5px 0; font-size: 11px;">Kto sporządza opis:</p>
+                                <select df-dzial style="font-size: 12px;">
+                                    <option value="unknown">Wybierz odbiorcę</option>
+                                </select>
+                            </div>
+                        </div>`;
+                // Parametry: nazwa, liczba wejść (1), liczba wyjść (1), pozycjaX, pozycjaY, klasa CSS, dane JSON, kod HTML
+                window.editor.addNode('opis', 1, 1, pos_x, pos_y, 'opis', { "kto": "autor" }, html);
+                break;
+            case 'akceptacja':
+                html = `<div>
+                            <div class="title-box" style="background: #95d186; color: #000; padding: 10px; border-radius: 4px 4px 0 0;"><i class="fas fa-check-circle"></i> Akceptacja</div>
+                            <div class="box">
+                                <p style="margin: 0 0 5px 0; font-size: 11px;">Kto akceptuje:</p>
+                                <select df-dzial style="font-size: 12px;">
+                                    <option value="acc_0">Księgowość</option>
+                                    <option value="acc_1">Główna księgowa</option>
+                                    <option value="acc_2">Dyrektor</option>
+                                    <option value="acc_3">Przełożony</option>
+                                    <option value="acc_3">Dział kadr</option>
+                                    <option value="acc_4">Właściciel</option>
+                                </select>
+                            </div>
+                        </div>`;
+                window.editor.addNode('akceptacja', 1, 1, pos_x, pos_y, 'akceptacja', { "dzial": "hr" }, html);
+                break;
+            case 'warunek':
+                html = `<div>
+                            <div class="title-box" style="background: #ffc107; color: #000; padding: 10px; border-radius: 4px 4px 0 0;">
+                                <i class="fas fa-code-branch"></i> Sprawdzenie
+                            </div>
+                            <div class="box" style="padding: 10px;">
+                                <p style="margin: 0 0 5px 0; font-size: 11px;">Treść warunku:</p>
+                                <!-- Magia dzieje się tutaj dzięki atrybutowi df-nazwa_warunku -->
+                                <input type="text" df-nazwa_warunku placeholder="Np. Faktura opłacona?" style="width: 100%; box-sizing: border-box; padding: 5px; font-size: 12px; border: 1px solid #ccc; border-radius: 3px;">
+                            </div>
+                        </div>`;
+                
+                // Zmieniamy również domyślne dane przekazywane w 7. parametrze.
+                // Tworzymy pusty klucz "nazwa_warunku", do którego Drawflow będzie w locie zapisywał tekst z inputa.
+                window.editor.addNode('warunek', 1, 2, pos_x, pos_y, 'warunek_node', { "nazwa_warunku": "" }, html);
+                break;
+            case 'pytanie':
+                html = `<div>
+                            <div class="title-box" style="background: #91c1e7; color: #000; padding: 10px; border-radius: 4px 4px 0 0;">
+                                <i class="fas fa-code-branch"></i> Pytanie
+                            </div>
+                            <div class="box" style="padding: 10px;">
+                                <p style="margin: 0 0 5px 0; font-size: 11px;">Treść pytania:</p>
+                                <!-- Magia dzieje się tutaj dzięki atrybutowi df-nazwa_pytania -->
+                                <input type="text" df-nazwa_pytania placeholder="Np. Faktura opłacona?" style="width: 100%; box-sizing: border-box; padding: 5px; font-size: 12px; border: 1px solid #ccc; border-radius: 3px;">
+                            </div>
+                        </div>`;
+                
+                // Zmieniamy również domyślne dane przekazywane w 7. parametrze.
+                // Tworzymy pusty klucz "nazwa_warunku", do którego Drawflow będzie w locie zapisywał tekst z inputa.
+                window.editor.addNode('pytanie', 1, 2, pos_x, pos_y, 'warunek_node', { "nazwa_pytania": "" }, html);
+                break;
+            case 'kontener':
+                html = `<div>
+                            <div class="title-box"><i class="fas fa-archive"></i> Kontener</div>
+                            <div class="box">
+                                <p style="margin: 0 0 5px 0; font-size: 11px;">Miejsce docelowe:</p>
+                                <select df-dzial style="font-size: 12px;">
+                                    <option value="cont_0">Archiwum ogólne</option>
+                                    <option value="cont_1">Archiwum prywatne</option>
+                                    <option value="cont_2">Dokumenty zablokowane</option>
+                                    <option value="cont_3">Wnioski urlopowe</option>
+                                </select>
+                            </div>
+                        </div>`;
+                window.editor.addNode('kontener', 1, 0, pos_x, pos_y, 'kontener', {}, html);
+                break;
+            case 'email':
+                html = `<div>
+                            <div class="title-box"><i class="fas fa-envelope"></i> Email</div>
+                        </div>`;
+                window.editor.addNode('email', 1, 1, pos_x, pos_y, 'email', {}, html);
+                break;
+            default:
+        }
+    }
+
+    function loadDiagram(filename) {
+        // Generujemy adres do pliku przy pomocy tagu Django
+        const baseUrl = "{% static 'flow/'%}";
+        const fileUrl = baseUrl + filename;
+        
+        // Używamy Fetch API, aby pobrać zawartość pliku JSON
+        fetch(fileUrl, { cache: 'no-store' })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error("Nie udało się pobrać pliku JSON. Status: " + response.status);
+                }
+                return response.json(); // Konwertujemy odpowiedź na obiekt JavaScript
+            })
+            .then(data => {
+                // Czyścimy obecne płótno, żeby nowy diagram nie nałożył się na stary
+                window.editor.clearModuleSelected();
+                
+                // Wczytujemy pobrane dane do Drawflow
+                window.editor.import(data);
+                
+                console.log("Diagram wczytany pomyślnie!");
+            })
+            .catch(error => {
+                console.error("Błąd wczytywania diagramu:", error);
+                alert("Wystąpił błąd podczas wczytywania pliku (${filename}). Sprawdź konsolę.");
+            });
+    }
+</script>
+
+{% endblock %}

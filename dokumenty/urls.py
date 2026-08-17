@@ -18,4 +18,6 @@ urlpatterns = [
     path('wyszukiwarka-ksef/', views.wyszukiwarka_ksef, name='wyszukiwarka_ksef'),
     path('importuj-zbiorczo-ksef/', views.importuj_zbiorczo_ksef, name='importuj_zbiorczo_ksef'),
     path('zablokowane/', views.dokumenty_zablokowane, name='dokumenty_zablokowane'),
+    path('api/save-workflow/', views.save_workflow, name='save_workflow'),
+    path('kreator/', views.workflow_editor_view, name='kreator'),
 ]
