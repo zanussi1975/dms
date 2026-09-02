@@ -5,6 +5,7 @@ from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.contrib.auth import get_user_model # Do pobrania użytkowników
 from .models import Document, DocumentStatus, WorkflowRule, DocumentAttachment, DocumentHistory, UserProfile
+from .models import SystemNote
 from django.db.models import Q
 from django.contrib.auth import logout
 from django.http import JsonResponse
@@ -13,7 +14,6 @@ import uuid
 from datetime import datetime
 import pandas as pd
 from dbfread import DBF
-import os
 from django.conf import settings
 from .models import Document, DocumentStatus, WorkflowRule, DocumentAttachment, DocumentHistory, UserProfile, Contractor
 import json
@@ -26,10 +26,18 @@ import qr_code
 from django.template.loader import render_to_string
 from django.core.files.base import ContentFile
 from django.utils import timezone
+from dotenv import load_dotenv
+import os
+
+
+load_dotenv()
 
 
 
 User = get_user_model()
+
+BASE_URL = os.getenv("KSEF_BASE_URL")
+CORIM_URL = os.getenv("CORIM_URL")
 
 @login_required
 def moje_biurko(request):
@@ -811,8 +819,8 @@ def get_corim_orders(username):
         return []
     
     # Zakładamy, że folder corim leży w głównym katalogu projektu
-    plik_zamowienia = os.path.join(settings.BASE_DIR, "corim", "FECOMMAN.DBF")
-    plik_dostawcy = os.path.join(settings.BASE_DIR, "corim", "FCFOURNI.DBF")
+    plik_zamowienia = os.path.join(CORIM_URL, "FECOMMAN.DBF")
+    plik_dostawcy = os.path.join(CORIM_URL, "FCFOURNI.DBF")
     
     if not os.path.exists(plik_zamowienia) or not os.path.exists(plik_dostawcy):
         return []
@@ -972,9 +980,7 @@ def wyszukiwarka_ksef(request):
                     "Content-Type": "application/json"
                 }
                 
-                # Zmieniono URL na ten z Twojego skryptu[cite: 9]
-                base_url = "https://api-demo.ksef.mf.gov.pl/v2" 
-                query_url = f"{base_url}/invoices/query/metadata"
+                query_url = f"{BASE_URL}/invoices/query/metadata?PageSize=100&PageOffset=0"
                 
                 query_payload = {
                     "subjectType": "Subject2", # Szukamy faktur kosztowych (jako Nabywca)[cite: 9]
@@ -1073,7 +1079,6 @@ def importuj_zbiorczo_ksef(request):
         }
         
         # Konfiguracja środowiska jak w Twoim skrypcie
-        base_url = "https://api-demo.ksef.mf.gov.pl/v2"
         baza_katalog = "Robocze_Wyszukiwarka"
         os.makedirs(f"{baza_katalog}/XML", exist_ok=True)
         os.makedirs(f"{baza_katalog}/HTML", exist_ok=True)
@@ -1100,7 +1105,7 @@ def importuj_zbiorczo_ksef(request):
             
             try:
                 # 1. Pobieranie XML z KSeF
-                resp_xml = requests.get(f"{base_url}/invoices/ksef/{ksef_num}", headers=headers_xml)
+                resp_xml = requests.get(f"{BASE_URL}/invoices/ksef/{ksef_num}", headers=headers_xml)
                 if resp_xml.status_code == 200:
                     with open(sciezka_xml, "wb") as f:
                         f.write(resp_xml.content)
@@ -1276,4 +1281,25 @@ def save_workflow(request):
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': f'Błąd serwera: {str(e)}'}, status=500)
     
+
+@login_required
+def uwagi_systemowe(request):
+    if request.method == 'POST':
+        tresc = request.POST.get('tresc')
+        if tresc and tresc.strip():
+            SystemNote.objects.create(
+                user=request.user,
+                content=tresc.strip()
+            )
+            messages.success(request, "Twoja uwaga została przesłana. Dziękuję!")
+            return redirect('uwagi_systemowe')
+        else:
+            messages.error(request, "Treść uwagi nie może być pusta.")
+            
+    # Pobieramy wszystkie uwagi, żeby system działał jak otwarta tablica (transparentność w zespole)
+    uwagi = SystemNote.objects.all()
     
+    context = {
+        'uwagi': uwagi
+    }
+    return render(request, 'dokumenty/uwagi.html', context)

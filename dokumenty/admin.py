@@ -1,5 +1,7 @@
 from django.contrib import admin
 from .models import Document, DocumentHistory, WorkflowRule
+from .models import SystemNote
+from django.utils import timezone
 
 @admin.register(Document)
 class DocumentAdmin(admin.ModelAdmin):
@@ -39,3 +41,18 @@ class WorkflowRuleAdmin(admin.ModelAdmin):
     list_display = ('target_status', 'default_assignee')
     list_filter = ('target_status',)
     search_fields = ('default_assignee__username', 'default_assignee__last_name')
+    
+
+@admin.register(SystemNote)
+class SystemNoteAdmin(admin.ModelAdmin):
+    list_display = ('user', 'created_at', 'is_resolved', 'responded_at')
+    list_filter = ('is_resolved', 'created_at')
+    search_fields = ('content', 'admin_response', 'user__username', 'user__first_name', 'user__last_name')
+    readonly_fields = ('user', 'content', 'created_at', 'responded_at')
+    
+    # Automatyczne nadawanie daty odpowiedzi i statusu "Rozwiązane" gdy wpiszesz komentarz
+    def save_model(self, request, obj, form, change):
+        if change and 'admin_response' in form.changed_data and obj.admin_response:
+            obj.responded_at = timezone.now()
+            obj.is_resolved = True
+        super().save_model(request, obj, form, change)

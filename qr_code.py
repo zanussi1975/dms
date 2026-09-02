@@ -4,6 +4,13 @@ import hashlib
 from io import BytesIO
 from lxml import etree
 from datetime import datetime
+from dotenv import load_dotenv
+import os
+
+
+load_dotenv()
+
+QR_URL = os.getenv("KSEF_QR_URL") 
 
 def wylicz_skrot_ksef_2_0(sciezka_xml):
     """Wylicza skrót weryfikacyjny XML (Base64URL z SHA-256)"""
@@ -51,7 +58,7 @@ def dodaj_qrcode_do_faktury_v2(sciezka_xml, sciezka_html, sciezka_html_wyjscie, 
     nip, data_wystawienia = wyciagnij_dane_do_linku(sciezka_xml)
     
     # 2. Prawidłowy link QR dla KSeF 2.0
-    url_qr = f"https://qr-demo.ksef.mf.gov.pl/invoice/{nip}/{data_wystawienia}/{skrot}"
+    url_qr = f"{QR_URL}/{nip}/{data_wystawienia}/{skrot}"
     
     # 3. Generowanie kodu QR
     qr = qrcode.QRCode(version=1, box_size=4, border=2)

@@ -23,6 +23,13 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 load_dotenv(os.path.join(BASE_DIR, '.env'))
 
+DB_NAME = os.getenv("DB_NAME")
+DB_USER = os.getenv("DB_USER")
+DB_PASSWORD = os.getenv("DB_PASSWORD")
+DB_HOST = os.getenv("DB_HOST")
+DB_PORT = os.getenv("DB_PORT")
+
+
 print(f"Media dir: {MEDIA_ROOT}")
 
 
@@ -33,9 +40,9 @@ print(f"Media dir: {MEDIA_ROOT}")
 SECRET_KEY = 'django-insecure-)($01)4@bfkw5#@z80m!kjtohhpztyyru2rqd8gdpivji(7jz8'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = ['192.168.48.129', 'localhost', '127.0.0.1']
+ALLOWED_HOSTS = ['192.168.48.168', 'localhost', '127.0.0.1','dms.fpk.zone']
 
 
 # Application definition
@@ -54,6 +61,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -89,11 +97,11 @@ WSGI_APPLICATION = 'system_obiegu.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'mssql',
-        'NAME': 'dms',
-        'USER': 'prod',
-        'PASSWORD': 'hotrod',
-        'HOST': 'pl-fpp-mssql\\kwidzyn', # lub adres IP serwera, np. '192.168.1.100'
-        # 'PORT': '1433', # domyślny port MS SQL
+        'NAME': DB_NAME,
+        'USER': DB_USER,
+        'PASSWORD': DB_PASSWORD,
+        'HOST': DB_HOST, # lub adres IP serwera, np. '192.168.1.100'
+        'PORT': DB_PORT, # domyślny port MS SQL
         'OPTIONS': {
             'driver': 'ODBC Driver 17 for SQL Server',
             # 'TrustServerCertificate': 'yes', # Odkomentuj, jeśli masz problemy z certyfikatem SSL w sieci lokalnej
@@ -137,7 +145,10 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
 # Przekierowanie dla niezalogowanych użytkowników (wymuszone m.in. przez @login_required)
+
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'moje_biurko'
 
@@ -167,3 +178,12 @@ EMAIL_PORT = 25
 
 # Domyślny nadawca wiadomości (tak podpisze się system w skrzynce odbiorcy)
 DEFAULT_FROM_EMAIL = 'DMS Poland <dms.poland@plastivaloire.com>'
+
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}

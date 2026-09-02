@@ -250,7 +250,7 @@
                                 {% else %}
                                     <strong>Niezgodne!</strong><br>
                                     Faktura: {{ faktura.net_amount }} {{ faktura.currency }} <br>
-                                    Zamówienie: {{ faktura.related_order.net_amount }} {{ faktura.currency }}
+                                    Zamówienie: {{ faktura.related_order.net_amount }} {{ faktura.related_order.currency }}
                                 {% endif %}
                             </div>
                         </div>

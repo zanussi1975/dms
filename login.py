@@ -21,6 +21,7 @@ USER_TOKEN = os.getenv("KSEF_USER_TOKEN")
 
 # Klucz publiczny dla API 2.0 (pobierany z GET /v2/security/public-key-certificates)
 PUBLIC_KEY_PEM = os.getenv("KSEF_PUBLIC_KEY").encode("ascii")
+PUBLIC_KEY_ID = os.getenv("KSEF_PUBLIC_KEY_ID")
 
 
 def login_to_ksef_v2(nip: str, user_token: str, pem_key: bytes) -> str:
@@ -87,6 +88,7 @@ def login_to_ksef_v2(nip: str, user_token: str, pem_key: bytes) -> str:
     # KROK 3: Uwierzytelnienie za pomocą zaszyfrowanego tokena
     # ---------------------------------------------------------
     print("3. Wywołanie /auth/ksef-token...")
+    print(f"PUBLIC_KEY_ID = {PUBLIC_KEY_ID}")
     ksef_token_url = f"{BASE_URL}/auth/ksef-token"
     auth_payload = {
         "contextIdentifier": {
@@ -96,7 +98,7 @@ def login_to_ksef_v2(nip: str, user_token: str, pem_key: bytes) -> str:
         "challenge": challenge,
         "encryptedToken": encrypted_token_b64,
         # Wskazujemy konkretny klucz publiczny MF (zgodny z tym z Twojego certyfikatu)
-        "publicKeyId": "IPbPM4CB49vtoR/x/3fEI+Y+Q6lK/bVVehQ7/NlPJoo="
+        "publicKeyId": PUBLIC_KEY_ID
     }
     
     response_auth = requests.post(ksef_token_url, json=auth_payload, headers=headers)

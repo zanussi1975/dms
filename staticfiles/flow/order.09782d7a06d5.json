@@ -1,0 +1,86 @@
+{
+    "drawflow": {
+        "Home": {
+            "data": {
+                "1": {
+                    "id": 1,
+                    "name": "start",
+                    "data": {
+                        "dzial": "zamowienie"
+                    },
+                    "class": "start",
+                    "html": "<div>\n                            <div class=\"title-box\"><i class=\"fas fa-play\"></i> Nowy dokument</div>\n                            <div class=\"box\">\n                                <p style=\"margin: 0 0 5px 0; font-size: 11px;\">Wybierz typ dokumentu:</p>\n                                <select df-dzial style=\"font-size: 12px;\">\n                                    <option value=\"faktura\">Faktura</option>\n                                    <option value=\"zamowienie\">Zamówienie</option>\n                                    <option value=\"urlop\">Wniosek urlopowy</option>\n                                </select>\n                            </div>\n                        </div>",
+                    "typenode": false,
+                    "inputs": {},
+                    "outputs": {
+                        "output_1": {
+                            "connections": [
+                                {
+                                    "node": "2",
+                                    "output": "input_1"
+                                }
+                            ]
+                        }
+                    },
+                    "pos_x": 148,
+                    "pos_y": 107
+                },
+                "2": {
+                    "id": 2,
+                    "name": "akceptacja",
+                    "data": {
+                        "dzial": "acc_2"
+                    },
+                    "class": "akceptacja",
+                    "html": "<div>\n                            <div class=\"title-box\" style=\"background: #95d186; color: #000; padding: 10px; border-radius: 4px 4px 0 0;\"><i class=\"fas fa-check-circle\"></i> Akceptacja</div>\n                            <div class=\"box\">\n                                <p style=\"margin: 0 0 5px 0; font-size: 11px;\">Kto akceptuje:</p>\n                                <select df-dzial style=\"font-size: 12px;\">\n                                    <option value=\"acc_0\">Księgowość</option>\n                                    <option value=\"acc_1\">Główna księgowa</option>\n                                    <option value=\"acc_2\">Dyrektor</option>\n                                </select>\n                            </div>\n                        </div>",
+                    "typenode": false,
+                    "inputs": {
+                        "input_1": {
+                            "connections": [
+                                {
+                                    "node": "1",
+                                    "input": "output_1"
+                                }
+                            ]
+                        }
+                    },
+                    "outputs": {
+                        "output_1": {
+                            "connections": [
+                                {
+                                    "node": "4",
+                                    "output": "input_1"
+                                }
+                            ]
+                        }
+                    },
+                    "pos_x": 567,
+                    "pos_y": 106
+                },
+                "4": {
+                    "id": 4,
+                    "name": "kontener",
+                    "data": {
+                        "dzial": "cont_1"
+                    },
+                    "class": "kontener",
+                    "html": "<div>\n                            <div class=\"title-box\"><i class=\"fas fa-archive\"></i> Kontener</div>\n                            <div class=\"box\">\n                                <p style=\"margin: 0 0 5px 0; font-size: 11px;\">Miejsce docelowe:</p>\n                                <select df-dzial style=\"font-size: 12px;\">\n                                    <option value=\"cont_0\">Archiwum ogólne</option>\n                                    <option value=\"cont_1\">Archiwum prywatne</option>\n                                    <option value=\"cont_2\">Dokumenty zablokowane</option>\n                                </select>\n                            </div>\n                        </div>",
+                    "typenode": false,
+                    "inputs": {
+                        "input_1": {
+                            "connections": [
+                                {
+                                    "node": "2",
+                                    "input": "output_1"
+                                }
+                            ]
+                        }
+                    },
+                    "outputs": {},
+                    "pos_x": 976,
+                    "pos_y": 106
+                }
+            }
+        }
+    }
+}

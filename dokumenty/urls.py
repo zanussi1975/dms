@@ -20,4 +20,5 @@ urlpatterns = [
     path('zablokowane/', views.dokumenty_zablokowane, name='dokumenty_zablokowane'),
     path('api/save-workflow/', views.save_workflow, name='save_workflow'),
     path('kreator/', views.workflow_editor_view, name='kreator'),
+    path('uwagi/', views.uwagi_systemowe, name='uwagi_systemowe'),
 ]

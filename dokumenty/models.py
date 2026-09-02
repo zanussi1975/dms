@@ -61,7 +61,10 @@ class Document(models.Model):
     def is_fully_compliant(self):
         """Sprawdza, czy faktura ma podpięte zamówienie i kwoty netto są identyczne."""
         if self.related_order and self.typ_dokumentu == DocumentType.FAKTURA:
-            return self.net_amount == self.related_order.net_amount
+            kwota_zgodna = self.net_amount == self.related_order.net_amount
+            waluta_zgodna = self.currency == self.related_order.currency
+            
+            return kwota_zgodna and waluta_zgodna
         return False
 
     typ_dokumentu = models.CharField(
@@ -319,3 +322,24 @@ class Contractor(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.nip})"    
+
+
+class SystemNote(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.CASCADE, 
+        verbose_name="Zgłaszający"
+    )
+    content = models.TextField(verbose_name="Treść uwagi / pomysłu")
+    admin_response = models.TextField(blank=True, null=True, verbose_name="Odpowiedź administratora")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Data zgłoszenia")
+    responded_at = models.DateTimeField(blank=True, null=True, verbose_name="Data odpowiedzi")
+    is_resolved = models.BooleanField(default=False, verbose_name="Rozwiązane")
+
+    class Meta:
+        verbose_name = "Uwaga do systemu"
+        verbose_name_plural = "Uwagi do systemu"
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Zgłoszenie od {self.user.username} ({self.created_at.strftime('%Y-%m-%d')})"

@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid px-4 py-3 full-height-wrapper">
+    <div class="row mb-3 flex-shrink-0">
+        <div class="col-12">
+            <h2 class="fw-bold mb-1">💬 Zgłoś uwagę / Pomysł</h2>
+            <p class="custom-text-muted text-muted mb-0">Znalazłeś błąd lub masz propozycję nowej funkcjonalności? Daj mi znać!</p>
+        </div>
+    </div>
+
+    <div class="row full-height-row">
+        <!-- LEWA STRONA: Pionowe Menu Nawigacyjne -->
+        <div class="col-md-3 sidebar-col mb-3 mb-md-0">
+            <div class="card shadow-sm border-0 sidebar-card p-3 rounded-3 h-100">
+                <h6 class="text-uppercase custom-text-muted fs-7 fw-bold px-3 mb-3 text-muted">Nawigacja</h6>
+                <div class="list-group list-group-flush gap-1">
+                    <a href="{% url 'moje_biurko' %}" class="sidebar-item"><i class="bi bi-inbox me-2"></i> Biurko</a>
+                    <a href="{% url 'zamowienia_corim' %}" class="sidebar-item"><i class="bi bi-hdd-network me-2"></i> Moje Zamów. CORIM</a>
+                    <a href="{% url 'archiwum_firmowe' %}" class="sidebar-item"><i class="bi bi-folder2-open me-2"></i> Archiwum firmowe</a>
+                    <a href="{% url 'archiwum_osobiste' %}" class="sidebar-item"><i class="bi bi-person-workspace me-2"></i> Archiwum osobiste</a>
+                    <a href="{% url 'dokumenty_zablokowane' %}" class="sidebar-item"><i class="bi bi-slash-circle me-2"></i> Zablokowane</a>
+                    <a href="{% url 'wyszukiwarka_ksef' %}" class="sidebar-item"><i class="bi bi-search me-2"></i> Wyszukiwarka KSeF</a>
+                    <a href="{% url 'ustawienia_profilu' %}" class="sidebar-item"><i class="bi bi-gear me-2"></i> Ustawienia konta</a>
+                    <a href="{% url 'kreator' %}" class="sidebar-item"><i class="bi bi-gear me-2"></i> Kreator przepływów</a>
+                    <a href="{% url 'uwagi_systemowe' %}" class="sidebar-item"><i class="bi bi-lightbulb me-2"></i> Zgłoś uwagę</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- PRAWA STRONA: Tablica zgłoszeń -->
+        <div class="col-md-9 content-col">
+            <div class="card shadow-sm border-0 h-100 d-flex flex-column">
+                <div class="card-header custom-card-header py-3 flex-shrink-0 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Tablica aktywności i rozwoju</h5>
+                    <span class="badge bg-secondary rounded shadow-sm px-3 py-2">{{ uwagi.count }} zgłoszeń</span>
+                </div>
+                
+                <div class="card-body custom-card-body p-4 table-responsive table-container-scrollable flex-grow-1">
+                    
+                    <!-- Formularz dodawania nowej uwagi -->
+                    <div class="card shadow-sm border-0 mb-4" style="background-color: rgba(0,0,0,0.03);">
+                        <div class="card-body">
+                            <form method="POST">
+                                {% csrf_token %}
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Napisz nową uwagę / pomysł:</label>
+                                    <textarea class="form-control custom-border" name="tresc" rows="3" required placeholder="Opisz dokładnie problem lub swoją propozycję..."></textarea>
+                                </div>
+                                <div class="text-end">
+                                    <button type="submit" class="btn custom-btn-main shadow-sm">
+                                        <i class="bi bi-send-fill me-1"></i> Wyślij do administratora
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <hr class="custom-border mb-4">
+
+                    <!-- Lista wpisów (Oś czasu) -->
+                    <div class="d-flex flex-column gap-3">
+                        {% for uwaga in uwagi %}
+                        <div class="card shadow-sm border-0 custom-card-body" style="border-left: 4px solid var(--border-color) !important;">
+                            <div class="card-body">
+                                <!-- Nagłówek Zgłoszenia -->
+                                <div class="d-flex justify-content-between mb-2">
+                                    <strong>
+                                        <i class="bi bi-person-circle text-secondary me-1"></i> 
+                                        {{ uwaga.user.first_name|default:uwaga.user.username }} {{ uwaga.user.last_name }}
+                                    </strong>
+                                    <small class="custom-text-muted">{{ uwaga.created_at|date:"d.m.Y H:i" }}</small>
+                                </div>
+                                <p class="mb-0" style="font-size: 0.95rem;">{{ uwaga.content|linebreaksbr }}</p>
+                                
+                                <!-- Odpowiedź Administratora -->
+                                {% if uwaga.admin_response %}
+                                <div class="mt-3 p-3 rounded" style="background-color: rgba(45, 106, 79, 0.08); border-left: 3px solid var(--btn-main);">
+                                    <div class="d-flex justify-content-between mb-1">
+                                        <strong style="color: var(--btn-main);">
+                                            <i class="bi bi-person-workspace me-1"></i> Odpowiedź administratora
+                                        </strong>
+                                        <small class="text-muted">{{ uwaga.responded_at|date:"d.m.Y H:i" }}</small>
+                                    </div>
+                                    <p class="mb-0" style="font-size: 0.95rem;">{{ uwaga.admin_response|linebreaksbr }}</p>
+                                </div>
+                                {% else %}
+                                <div class="mt-3 text-end">
+                                    <span class="badge bg-warning text-dark border"><i class="bi bi-hourglass-split me-1"></i> W trakcie analizy</span>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="text-center py-5 text-muted">
+                            <i class="bi bi-clipboard-check fs-1 d-block mb-3"></i>
+                            Brak zgłoszeń! Śmiało, bądź pierwszą osobą, która coś napisze.
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
